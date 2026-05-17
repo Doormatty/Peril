@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Peril</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+      window.PERIL_CONFIG = {
+        dbUrl: "jarchive.sqlite3",
+        sqlJsUrl: "vendor/sql-wasm.js",
+        sqlWasmUrl: "vendor/sql-wasm.wasm"
+      };
+    </script>
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <main class="layout">
+        <aside id="game-selection-panel" class="sidebar" aria-label="Games">
+          <button
+            id="game-panel-toggle"
+            class="sidebar-toggle"
+            type="button"
+            aria-controls="game-selection-panel"
+            aria-expanded="true"
+            aria-label="Collapse game selection"
+          ></button>
+          <div class="sidebar-content">
+            <div class="sidebar-header">
+              <label for="game-search">Seasons</label>
+              <button id="random-game" type="button">Random</button>
+            </div>
+            <input id="game-search" type="search" autocomplete="off" placeholder="Search seasons, shows, dates">
+            <div id="game-status" class="status" role="status">Loading database...</div>
+            <div id="game-list" class="game-list" aria-label="Seasons and playable games"></div>
+          </div>
+        </aside>
+
+        <section class="play-area" aria-label="Game board">
+          <div class="game-header">
+            <div class="game-heading">
+              <p id="game-kicker" class="eyebrow">No Game Selected</p>
+              <h2 id="game-title">Choose a game</h2>
+            </div>
+            <div class="brand">
+              <h1>Peril</h1>
+            </div>
+            <div class="game-actions">
+              <div class="scorebox" aria-live="polite">
+                <span class="scorebox-label">Score</span>
+                <strong id="score">$0</strong>
+              </div>
+              <button id="reset-game" type="button" disabled>Reset</button>
+            </div>
+          </div>
+
+          <div class="board-area">
+            <div id="board" class="board" aria-live="polite"></div>
+            <nav id="round-tabs" class="round-tabs" aria-label="Rounds"></nav>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="clue-dialog" class="clue-dialog">
+      <form method="dialog" class="clue-panel">
+        <div class="clue-topline">
+          <span id="clue-category"></span>
+          <strong id="clue-value"></strong>
+        </div>
+        <div id="wager-area" class="wager-area" hidden>
+          <label for="wager-input">Wager</label>
+          <input id="wager-input" type="number" min="0" step="100" inputmode="numeric">
+        </div>
+        <p id="clue-text" class="clue-text"></p>
+        <label class="response-label" for="player-response">Response</label>
+        <input id="player-response" type="text" autocomplete="off">
+        <div id="correct-response" class="correct-response" hidden></div>
+        <div class="dialog-actions">
+          <button id="close-clue" type="button" class="secondary">Close</button>
+          <button id="reveal-response" type="button">Reveal</button>
+          <button id="mark-wrong" type="button" class="danger" hidden>Wrong</button>
+          <button id="mark-pass" type="button" class="secondary" hidden>Pass</button>
+          <button id="mark-correct" type="button" class="success" hidden>Correct</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

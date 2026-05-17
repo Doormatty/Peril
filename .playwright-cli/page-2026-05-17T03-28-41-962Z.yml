@@ -1,0 +1,23 @@
+- main [ref=e3]:
+  - complementary "Games" [ref=e4]:
+    - button "Collapse game selection" [expanded] [ref=e5] [cursor=pointer]: <
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: Seasons
+        - button "Random" [ref=e9] [cursor=pointer]
+      - searchbox "Seasons" [ref=e10]
+      - status [ref=e11]: Loading database...
+      - generic "Seasons and playable games" [ref=e12]
+  - region "Game board" [ref=e13]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - paragraph [ref=e16]: No Game Selected
+        - heading "Choose a game" [level=2] [ref=e17]
+      - heading "Peril" [level=1] [ref=e19]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: Score
+          - strong [ref=e23]: $0
+        - button "Reset" [disabled] [ref=e24]
+    - generic [ref=e25]:
+      - navigation "Rounds"

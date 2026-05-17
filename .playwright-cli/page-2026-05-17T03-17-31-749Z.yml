@@ -1,0 +1,420 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "Peril" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - generic [ref=e7]: Score
+      - strong [ref=e8]: $0
+  - main [ref=e9]:
+    - complementary "Games" [ref=e10]:
+      - button "Collapse game selection" [expanded] [ref=e11] [cursor=pointer]: <
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: Seasons
+          - button "Random" [ref=e15] [cursor=pointer]
+        - searchbox "Seasons" [ref=e16]
+        - status [ref=e17]: Game 9441 loaded
+        - generic "Seasons and playable games" [ref=e18]:
+          - generic [ref=e19]:
+            - button "- Season 42 2025-09-08 to 2026-07-24 18 parsed of 180 games" [expanded] [ref=e20] [cursor=pointer]:
+              - text: "-"
+              - generic [ref=e21]:
+                - strong [ref=e22]: Season 42
+                - generic [ref=e23]: 2025-09-08 to 2026-07-24
+              - generic "18 parsed of 180 games" [ref=e24]: 18/180
+            - generic [ref=e25]:
+              - 'button "Show #9557, aired 2026-05-05 2026-05-05 · #9557 · 61 clues" [ref=e26] [cursor=pointer]':
+                - strong [ref=e27]: "Show #9557, aired 2026-05-05"
+                - generic [ref=e28]: "2026-05-05 · #9557 · 61 clues"
+              - 'button "J! Archive - Primetime Celebrity Jeopardy! game #44, aired 2026-05-01 2026-05-01 · #44 · 61 clues" [ref=e29] [cursor=pointer]':
+                - strong [ref=e30]: "J! Archive - Primetime Celebrity Jeopardy! game #44, aired 2026-05-01"
+                - generic [ref=e31]: "2026-05-01 · #44 · 61 clues"
+              - 'button "Show #9553, aired 2026-04-29 2026-04-29 · #9553 · 61 clues" [ref=e32] [cursor=pointer]':
+                - strong [ref=e33]: "Show #9553, aired 2026-04-29"
+                - generic [ref=e34]: "2026-04-29 · #9553 · 61 clues"
+              - 'button "Show #9545, aired 2026-04-17 2026-04-17 · #9545 · 61 clues" [ref=e35] [cursor=pointer]':
+                - strong [ref=e36]: "Show #9545, aired 2026-04-17"
+                - generic [ref=e37]: "2026-04-17 · #9545 · 61 clues"
+              - 'button "Show #9544, aired 2026-04-16 2026-04-16 · #9544 · 61 clues" [ref=e38] [cursor=pointer]':
+                - strong [ref=e39]: "Show #9544, aired 2026-04-16"
+                - generic [ref=e40]: "2026-04-16 · #9544 · 61 clues"
+              - 'button "Show #9540, aired 2026-04-10 2026-04-10 · #9540 · 61 clues" [ref=e41] [cursor=pointer]':
+                - strong [ref=e42]: "Show #9540, aired 2026-04-10"
+                - generic [ref=e43]: "2026-04-10 · #9540 · 61 clues"
+              - 'button "Show #9535, aired 2026-04-03 2026-04-03 · #9535 · 61 clues" [ref=e44] [cursor=pointer]':
+                - strong [ref=e45]: "Show #9535, aired 2026-04-03"
+                - generic [ref=e46]: "2026-04-03 · #9535 · 61 clues"
+              - 'button "Show #9510, aired 2026-02-27 2026-02-27 · #9510 · 61 clues" [ref=e47] [cursor=pointer]':
+                - strong [ref=e48]: "Show #9510, aired 2026-02-27"
+                - generic [ref=e49]: "2026-02-27 · #9510 · 61 clues"
+              - 'button "Show #9505, aired 2026-02-20 2026-02-20 · #9505 · 61 clues" [ref=e50] [cursor=pointer]':
+                - strong [ref=e51]: "Show #9505, aired 2026-02-20"
+                - generic [ref=e52]: "2026-02-20 · #9505 · 61 clues"
+              - 'button "Show #9499, aired 2026-02-12 2026-02-12 · #9499 · 61 clues" [ref=e53] [cursor=pointer]':
+                - strong [ref=e54]: "Show #9499, aired 2026-02-12"
+                - generic [ref=e55]: "2026-02-12 · #9499 · 61 clues"
+              - 'button "Show #9493, aired 2026-02-04 2026-02-04 · #9493 · 61 clues" [ref=e56] [cursor=pointer]':
+                - strong [ref=e57]: "Show #9493, aired 2026-02-04"
+                - generic [ref=e58]: "2026-02-04 · #9493 · 61 clues"
+              - 'button "Show #9491, aired 2026-02-02 2026-02-02 · #9491 · 61 clues" [ref=e59] [cursor=pointer]':
+                - strong [ref=e60]: "Show #9491, aired 2026-02-02"
+                - generic [ref=e61]: "2026-02-02 · #9491 · 61 clues"
+              - 'button "Show #9480, aired 2026-01-16 2026-01-16 · #9480 · 61 clues" [ref=e62] [cursor=pointer]':
+                - strong [ref=e63]: "Show #9480, aired 2026-01-16"
+                - generic [ref=e64]: "2026-01-16 · #9480 · 61 clues"
+              - 'button "Show #9469, aired 2026-01-01 2026-01-01 · #9469 · 61 clues" [ref=e65] [cursor=pointer]':
+                - strong [ref=e66]: "Show #9469, aired 2026-01-01"
+                - generic [ref=e67]: "2026-01-01 · #9469 · 61 clues"
+              - 'button "Show #9441, aired 2025-11-24 2025-11-24 · #9441 · 61 clues" [ref=e68] [cursor=pointer]':
+                - strong [ref=e69]: "Show #9441, aired 2025-11-24"
+                - generic [ref=e70]: "2025-11-24 · #9441 · 61 clues"
+              - 'button "Show #9439, aired 2025-11-20 2025-11-20 · #9439 · 61 clues" [ref=e71] [cursor=pointer]':
+                - strong [ref=e72]: "Show #9439, aired 2025-11-20"
+                - generic [ref=e73]: "2025-11-20 · #9439 · 61 clues"
+              - 'button "Show #9404, aired 2025-10-02 2025-10-02 · #9404 · 61 clues" [ref=e74] [cursor=pointer]':
+                - strong [ref=e75]: "Show #9404, aired 2025-10-02"
+                - generic [ref=e76]: "2025-10-02 · #9404 · 61 clues"
+              - 'button "Show #9396, aired 2025-09-22 2025-09-22 · #9396 · 61 clues" [ref=e77] [cursor=pointer]':
+                - strong [ref=e78]: "Show #9396, aired 2025-09-22"
+                - generic [ref=e79]: "2025-09-22 · #9396 · 61 clues"
+          - button "+ Season 41 2024-09-09 to 2025-07-25 25 parsed of 230 games" [ref=e81] [cursor=pointer]:
+            - text: +
+            - generic [ref=e82]:
+              - strong [ref=e83]: Season 41
+              - generic [ref=e84]: 2024-09-09 to 2025-07-25
+            - generic "25 parsed of 230 games" [ref=e85]: 25/230
+          - button "+ Season 40 2023-09-11 to 2024-07-26 26 parsed of 230 games" [ref=e87] [cursor=pointer]:
+            - text: +
+            - generic [ref=e88]:
+              - strong [ref=e89]: Season 40
+              - generic [ref=e90]: 2023-09-11 to 2024-07-26
+            - generic "26 parsed of 230 games" [ref=e91]: 26/230
+          - button "+ Season 39 2022-09-12 to 2023-07-28 36 parsed of 230 games" [ref=e93] [cursor=pointer]:
+            - text: +
+            - generic [ref=e94]:
+              - strong [ref=e95]: Season 39
+              - generic [ref=e96]: 2022-09-12 to 2023-07-28
+            - generic "36 parsed of 230 games" [ref=e97]: 36/230
+          - button "+ Season 38 2021-09-13 to 2022-07-29 24 parsed of 230 games" [ref=e99] [cursor=pointer]:
+            - text: +
+            - generic [ref=e100]:
+              - strong [ref=e101]: Season 38
+              - generic [ref=e102]: 2021-09-13 to 2022-07-29
+            - generic "24 parsed of 230 games" [ref=e103]: 24/230
+          - button "+ Season 37 2020-09-14 to 2021-08-13 29 parsed of 230 games" [ref=e105] [cursor=pointer]:
+            - text: +
+            - generic [ref=e106]:
+              - strong [ref=e107]: Season 37
+              - generic [ref=e108]: 2020-09-14 to 2021-08-13
+            - generic "29 parsed of 230 games" [ref=e109]: 29/230
+          - button "+ Season 36 2019-09-09 to 2020-06-12 23 parsed of 190 games" [ref=e111] [cursor=pointer]:
+            - text: +
+            - generic [ref=e112]:
+              - strong [ref=e113]: Season 36
+              - generic [ref=e114]: 2019-09-09 to 2020-06-12
+            - generic "23 parsed of 190 games" [ref=e115]: 23/190
+          - button "+ Season 35 2018-09-10 to 2019-07-26 23 parsed of 230 games" [ref=e117] [cursor=pointer]:
+            - text: +
+            - generic [ref=e118]:
+              - strong [ref=e119]: Season 35
+              - generic [ref=e120]: 2018-09-10 to 2019-07-26
+            - generic "23 parsed of 230 games" [ref=e121]: 23/230
+          - button "+ Season 34 2017-09-11 to 2018-07-27 22 parsed of 230 games" [ref=e123] [cursor=pointer]:
+            - text: +
+            - generic [ref=e124]:
+              - strong [ref=e125]: Season 34
+              - generic [ref=e126]: 2017-09-11 to 2018-07-27
+            - generic "22 parsed of 230 games" [ref=e127]: 22/230
+          - button "+ Season 33 2016-09-12 to 2017-07-28 21 parsed of 230 games" [ref=e129] [cursor=pointer]:
+            - text: +
+            - generic [ref=e130]:
+              - strong [ref=e131]: Season 33
+              - generic [ref=e132]: 2016-09-12 to 2017-07-28
+            - generic "21 parsed of 230 games" [ref=e133]: 21/230
+          - button "+ Season 32 2015-09-14 to 2016-07-29 9 parsed of 230 games" [ref=e135] [cursor=pointer]:
+            - text: +
+            - generic [ref=e136]:
+              - strong [ref=e137]: Season 32
+              - generic [ref=e138]: 2015-09-14 to 2016-07-29
+            - generic "9 parsed of 230 games" [ref=e139]: 9/230
+          - button "+ Season 31 2014-09-15 to 2015-07-31 1 parsed of 230 games" [ref=e141] [cursor=pointer]:
+            - text: +
+            - generic [ref=e142]:
+              - strong [ref=e143]: Season 31
+              - generic [ref=e144]: 2014-09-15 to 2015-07-31
+            - generic "1 parsed of 230 games" [ref=e145]: 1/230
+          - button "+ Season 30 2013-09-16 to 2014-08-01 0 parsed of 230 games" [ref=e147] [cursor=pointer]:
+            - text: +
+            - generic [ref=e148]:
+              - strong [ref=e149]: Season 30
+              - generic [ref=e150]: 2013-09-16 to 2014-08-01
+            - generic "0 parsed of 230 games" [ref=e151]: 0/230
+          - button "+ Season 29 2012-09-17 to 2013-08-02 1 parsed of 230 games" [ref=e153] [cursor=pointer]:
+            - text: +
+            - generic [ref=e154]:
+              - strong [ref=e155]: Season 29
+              - generic [ref=e156]: 2012-09-17 to 2013-08-02
+            - generic "1 parsed of 230 games" [ref=e157]: 1/230
+          - button "+ Season 28 2011-09-19 to 2012-08-03 1 parsed of 230 games" [ref=e159] [cursor=pointer]:
+            - text: +
+            - generic [ref=e160]:
+              - strong [ref=e161]: Season 28
+              - generic [ref=e162]: 2011-09-19 to 2012-08-03
+            - generic "1 parsed of 230 games" [ref=e163]: 1/230
+          - button "+ Season 27 2010-09-13 to 2011-07-29 0 parsed of 230 games" [ref=e165] [cursor=pointer]:
+            - text: +
+            - generic [ref=e166]:
+              - strong [ref=e167]: Season 27
+              - generic [ref=e168]: 2010-09-13 to 2011-07-29
+            - generic "0 parsed of 230 games" [ref=e169]: 0/230
+          - button "+ Season 26 2009-09-14 to 2010-07-30 1 parsed of 230 games" [ref=e171] [cursor=pointer]:
+            - text: +
+            - generic [ref=e172]:
+              - strong [ref=e173]: Season 26
+              - generic [ref=e174]: 2009-09-14 to 2010-07-30
+            - generic "1 parsed of 230 games" [ref=e175]: 1/230
+          - button "+ Season 25 2008-09-08 to 2009-07-24 0 parsed of 230 games" [ref=e177] [cursor=pointer]:
+            - text: +
+            - generic [ref=e178]:
+              - strong [ref=e179]: Season 25
+              - generic [ref=e180]: 2008-09-08 to 2009-07-24
+            - generic "0 parsed of 230 games" [ref=e181]: 0/230
+          - button "+ Season 24 2007-09-10 to 2008-07-25 1 parsed of 230 games" [ref=e183] [cursor=pointer]:
+            - text: +
+            - generic [ref=e184]:
+              - strong [ref=e185]: Season 24
+              - generic [ref=e186]: 2007-09-10 to 2008-07-25
+            - generic "1 parsed of 230 games" [ref=e187]: 1/230
+          - button "+ Season 23 2006-09-11 to 2007-07-27 0 parsed of 230 games" [ref=e189] [cursor=pointer]:
+            - text: +
+            - generic [ref=e190]:
+              - strong [ref=e191]: Season 23
+              - generic [ref=e192]: 2006-09-11 to 2007-07-27
+            - generic "0 parsed of 230 games" [ref=e193]: 0/230
+          - button "+ Season 22 2005-09-12 to 2006-07-28 1 parsed of 230 games" [ref=e195] [cursor=pointer]:
+            - text: +
+            - generic [ref=e196]:
+              - strong [ref=e197]: Season 22
+              - generic [ref=e198]: 2005-09-12 to 2006-07-28
+            - generic "1 parsed of 230 games" [ref=e199]: 1/230
+          - button "+ Season 21 2004-09-06 to 2005-07-22 0 parsed of 230 games" [ref=e201] [cursor=pointer]:
+            - text: +
+            - generic [ref=e202]:
+              - strong [ref=e203]: Season 21
+              - generic [ref=e204]: 2004-09-06 to 2005-07-22
+            - generic "0 parsed of 230 games" [ref=e205]: 0/230
+          - button "+ Season 20 2003-09-08 to 2004-07-23 1 parsed of 230 games" [ref=e207] [cursor=pointer]:
+            - text: +
+            - generic [ref=e208]:
+              - strong [ref=e209]: Season 20
+              - generic [ref=e210]: 2003-09-08 to 2004-07-23
+            - generic "1 parsed of 230 games" [ref=e211]: 1/230
+          - button "+ Season 19 2002-09-02 to 2003-07-18 1 parsed of 230 games" [ref=e213] [cursor=pointer]:
+            - text: +
+            - generic [ref=e214]:
+              - strong [ref=e215]: Season 19
+              - generic [ref=e216]: 2002-09-02 to 2003-07-18
+            - generic "1 parsed of 230 games" [ref=e217]: 1/230
+          - button "+ Season 18 2001-09-03 to 2002-07-19 2 parsed of 229 games" [ref=e219] [cursor=pointer]:
+            - text: +
+            - generic [ref=e220]:
+              - strong [ref=e221]: Season 18
+              - generic [ref=e222]: 2001-09-03 to 2002-07-19
+            - generic "2 parsed of 229 games" [ref=e223]: 2/229
+          - button "+ Season 17 2000-09-04 to 2001-07-20 0 parsed of 230 games" [ref=e225] [cursor=pointer]:
+            - text: +
+            - generic [ref=e226]:
+              - strong [ref=e227]: Season 17
+              - generic [ref=e228]: 2000-09-04 to 2001-07-20
+            - generic "0 parsed of 230 games" [ref=e229]: 0/230
+          - button "+ Season 16 1999-09-06 to 2000-07-21 0 parsed of 230 games" [ref=e231] [cursor=pointer]:
+            - text: +
+            - generic [ref=e232]:
+              - strong [ref=e233]: Season 16
+              - generic [ref=e234]: 1999-09-06 to 2000-07-21
+            - generic "0 parsed of 230 games" [ref=e235]: 0/230
+          - button "+ Season 15 1998-09-07 to 1999-07-23 1 parsed of 230 games" [ref=e237] [cursor=pointer]:
+            - text: +
+            - generic [ref=e238]:
+              - strong [ref=e239]: Season 15
+              - generic [ref=e240]: 1998-09-07 to 1999-07-23
+            - generic "1 parsed of 230 games" [ref=e241]: 1/230
+          - button "+ Season 14 1997-09-01 to 1998-07-17 2 parsed of 230 games" [ref=e243] [cursor=pointer]:
+            - text: +
+            - generic [ref=e244]:
+              - strong [ref=e245]: Season 14
+              - generic [ref=e246]: 1997-09-01 to 1998-07-17
+            - generic "2 parsed of 230 games" [ref=e247]: 2/230
+          - button "+ Season 13 1996-09-02 to 1997-07-18 0 parsed of 218 games" [ref=e249] [cursor=pointer]:
+            - text: +
+            - generic [ref=e250]:
+              - strong [ref=e251]: Season 13
+              - generic [ref=e252]: 1996-09-02 to 1997-07-18
+            - generic "0 parsed of 218 games" [ref=e253]: 0/218
+          - button "+ Season 12 1995-09-04 to 1996-07-19 0 parsed of 229 games" [ref=e255] [cursor=pointer]:
+            - text: +
+            - generic [ref=e256]:
+              - strong [ref=e257]: Season 12
+              - generic [ref=e258]: 1995-09-04 to 1996-07-19
+            - generic "0 parsed of 229 games" [ref=e259]: 0/229
+          - button "+ Season 11 1994-09-05 to 1995-07-21 2 parsed of 214 games" [ref=e261] [cursor=pointer]:
+            - text: +
+            - generic [ref=e262]:
+              - strong [ref=e263]: Season 11
+              - generic [ref=e264]: 1994-09-05 to 1995-07-21
+            - generic "2 parsed of 214 games" [ref=e265]: 2/214
+          - button "+ Season 10 1993-09-06 to 1994-07-22 0 parsed of 230 games" [ref=e267] [cursor=pointer]:
+            - text: +
+            - generic [ref=e268]:
+              - strong [ref=e269]: Season 10
+              - generic [ref=e270]: 1993-09-06 to 1994-07-22
+            - generic "0 parsed of 230 games" [ref=e271]: 0/230
+          - button "+ Season 9 1992-09-07 to 1993-07-23 0 parsed of 229 games" [ref=e273] [cursor=pointer]:
+            - text: +
+            - generic [ref=e274]:
+              - strong [ref=e275]: Season 9
+              - generic [ref=e276]: 1992-09-07 to 1993-07-23
+            - generic "0 parsed of 229 games" [ref=e277]: 0/229
+          - button "+ Season 8 1991-09-02 to 1992-07-17 0 parsed of 195 games" [ref=e279] [cursor=pointer]:
+            - text: +
+            - generic [ref=e280]:
+              - strong [ref=e281]: Season 8
+              - generic [ref=e282]: 1991-09-02 to 1992-07-17
+            - generic "0 parsed of 195 games" [ref=e283]: 0/195
+          - button "+ Season 7 1990-09-03 to 1991-07-19 0 parsed of 212 games" [ref=e285] [cursor=pointer]:
+            - text: +
+            - generic [ref=e286]:
+              - strong [ref=e287]: Season 7
+              - generic [ref=e288]: 1990-09-03 to 1991-07-19
+            - generic "0 parsed of 212 games" [ref=e289]: 0/212
+          - button "+ Season 6 1989-09-04 to 1990-07-20 1 parsed of 202 games" [ref=e291] [cursor=pointer]:
+            - text: +
+            - generic [ref=e292]:
+              - strong [ref=e293]: Season 6
+              - generic [ref=e294]: 1989-09-04 to 1990-07-20
+            - generic "1 parsed of 202 games" [ref=e295]: 1/202
+          - button "+ Season 5 1988-09-05 to 1989-07-21 0 parsed of 216 games" [ref=e297] [cursor=pointer]:
+            - text: +
+            - generic [ref=e298]:
+              - strong [ref=e299]: Season 5
+              - generic [ref=e300]: 1988-09-05 to 1989-07-21
+            - generic "0 parsed of 216 games" [ref=e301]: 0/216
+          - button "+ Season 4 1987-09-07 to 1988-07-22 0 parsed of 222 games" [ref=e303] [cursor=pointer]:
+            - text: +
+            - generic [ref=e304]:
+              - strong [ref=e305]: Season 4
+              - generic [ref=e306]: 1987-09-07 to 1988-07-22
+            - generic "0 parsed of 222 games" [ref=e307]: 0/222
+          - button "+ Season 3 1986-09-08 to 1987-07-24 1 parsed of 215 games" [ref=e309] [cursor=pointer]:
+            - text: +
+            - generic [ref=e310]:
+              - strong [ref=e311]: Season 3
+              - generic [ref=e312]: 1986-09-08 to 1987-07-24
+            - generic "1 parsed of 215 games" [ref=e313]: 1/215
+          - button "+ Season 2 1985-09-09 to 1986-06-06 1 parsed of 179 games" [ref=e315] [cursor=pointer]:
+            - text: +
+            - generic [ref=e316]:
+              - strong [ref=e317]: Season 2
+              - generic [ref=e318]: 1985-09-09 to 1986-06-06
+            - generic "1 parsed of 179 games" [ref=e319]: 1/179
+          - button "+ Season 1 1984-09-10 to 1985-06-07 1 parsed of 164 games" [ref=e321] [cursor=pointer]:
+            - text: +
+            - generic [ref=e322]:
+              - strong [ref=e323]: Season 1
+              - generic [ref=e324]: 1984-09-10 to 1985-06-07
+            - generic "1 parsed of 164 games" [ref=e325]: 1/164
+          - button "+ Trebek pilots 1983-09-18 and 1984? 0 parsed of 2 games" [ref=e327] [cursor=pointer]:
+            - text: +
+            - generic [ref=e328]:
+              - strong [ref=e329]: Trebek pilots
+              - generic [ref=e330]: 1983-09-18 and 1984?
+            - generic "0 parsed of 2 games" [ref=e331]: 0/2
+          - button "+ Super Jeopardy! 1990-06-16 to 1990-09-08 0 parsed of 13 games" [ref=e333] [cursor=pointer]:
+            - text: +
+            - generic [ref=e334]:
+              - strong [ref=e335]: Super Jeopardy!
+              - generic [ref=e336]: 1990-06-16 to 1990-09-08
+            - generic "0 parsed of 13 games" [ref=e337]: 0/13
+          - button "+ Primetime Celebrity Jeopardy! 2022-09-25 to 2025-04-23 0 parsed of 49 games" [ref=e339] [cursor=pointer]:
+            - text: +
+            - generic [ref=e340]:
+              - strong [ref=e341]: Primetime Celebrity Jeopardy!
+              - generic [ref=e342]: 2022-09-25 to 2025-04-23
+            - generic "0 parsed of 49 games" [ref=e343]: 0/49
+          - button "+ Jeopardy! National College Championship 2022-02-08 to 2022-02-22 0 parsed of 18 games" [ref=e345] [cursor=pointer]:
+            - text: +
+            - generic [ref=e346]:
+              - strong [ref=e347]: Jeopardy! National College Championship
+              - generic [ref=e348]: 2022-02-08 to 2022-02-22
+            - generic "0 parsed of 18 games" [ref=e349]: 0/18
+          - button "+ Jeopardy! Masters 2023-05-08 to 2023-05-24 0 parsed of 56 games" [ref=e351] [cursor=pointer]:
+            - text: +
+            - generic [ref=e352]:
+              - strong [ref=e353]: Jeopardy! Masters
+              - generic [ref=e354]: 2023-05-08 to 2023-05-24
+            - generic "0 parsed of 56 games" [ref=e355]: 0/56
+          - 'button "+ Jeopardy!: The Greatest of All Time 2020-01-07 to 2020-01-14 0 parsed of 8 games" [ref=e357] [cursor=pointer]':
+            - text: +
+            - generic [ref=e358]:
+              - strong [ref=e359]: "Jeopardy!: The Greatest of All Time"
+              - generic [ref=e360]: 2020-01-07 to 2020-01-14
+            - generic "0 parsed of 8 games" [ref=e361]: 0/8
+          - button "+ Audio-only games 2024-01-12 to 2024-02-02 0 parsed of 3 games" [ref=e363] [cursor=pointer]:
+            - text: +
+            - generic [ref=e364]:
+              - strong [ref=e365]: Audio-only games
+              - generic [ref=e366]: 2024-01-12 to 2024-02-02
+            - generic "0 parsed of 3 games" [ref=e367]: 0/3
+          - button "+ Battle of the Bay Area Brains 1998-05-03 to 1998-05-03 0 parsed of 1 games" [ref=e369] [cursor=pointer]:
+            - text: +
+            - generic [ref=e370]:
+              - strong [ref=e371]: Battle of the Bay Area Brains
+              - generic [ref=e372]: 1998-05-03 to 1998-05-03
+            - generic "0 parsed of 1 games" [ref=e373]: 0/1
+    - region "Game board" [ref=e374]:
+      - generic [ref=e375]:
+        - generic [ref=e376]:
+          - paragraph [ref=e377]: "2026-05-05 · Show #9557"
+          - 'heading "Show #9557, aired 2026-05-05" [level=2] [ref=e378]'
+        - button "Reset" [ref=e379] [cursor=pointer]
+      - generic [ref=e380]:
+        - generic [ref=e381]:
+          - generic [ref=e382]: HISTORIC NAMES
+          - generic [ref=e383]: FROM BOOK TO FILM WITH A DIFFERENT TITLE
+          - generic [ref=e384]: FLAG GLOSSARY
+          - generic [ref=e385]: 12-LETTER WORDS
+          - generic [ref=e386]: QUOTES ABOUT SCIENCE
+          - generic [ref=e387]: DO YOU KNOW HOW FAST YOU WERE GOING?
+          - button "$200" [ref=e388] [cursor=pointer]
+          - button "$200" [ref=e389] [cursor=pointer]
+          - button "$200" [ref=e390] [cursor=pointer]
+          - button "$200" [ref=e391] [cursor=pointer]
+          - button "$200" [ref=e392] [cursor=pointer]
+          - button "$200" [ref=e393] [cursor=pointer]
+          - button "$400" [ref=e394] [cursor=pointer]
+          - button "$400" [ref=e395] [cursor=pointer]
+          - button "$400" [ref=e396] [cursor=pointer]
+          - button "$400" [ref=e397] [cursor=pointer]
+          - button "$400" [ref=e398] [cursor=pointer]
+          - button "$400" [ref=e399] [cursor=pointer]
+          - button "$600" [ref=e400] [cursor=pointer]
+          - button "$600" [ref=e401] [cursor=pointer]
+          - button "$600" [ref=e402] [cursor=pointer]
+          - button "$600" [ref=e403] [cursor=pointer]
+          - button "$600" [ref=e404] [cursor=pointer]
+          - button "$600" [ref=e405] [cursor=pointer]
+          - button "$800" [ref=e406] [cursor=pointer]
+          - button "$800" [ref=e407] [cursor=pointer]
+          - button "$800" [ref=e408] [cursor=pointer]
+          - button "$800" [ref=e409] [cursor=pointer]
+          - button "$800" [ref=e410] [cursor=pointer]
+          - button "$800" [ref=e411] [cursor=pointer]
+          - button "$1000" [ref=e412] [cursor=pointer]
+          - button "$1000" [ref=e413] [cursor=pointer]
+          - button "$1000" [ref=e414] [cursor=pointer]
+          - button "$1000" [ref=e415] [cursor=pointer]
+          - button "$1000" [ref=e416] [cursor=pointer]
+          - button "$1000" [ref=e417] [cursor=pointer]
+        - navigation "Rounds" [ref=e418]:
+          - button "Jeopardy" [ref=e419] [cursor=pointer]
+          - button "Double Jeopardy" [ref=e420] [cursor=pointer]
+          - button "Final Jeopardy" [ref=e421] [cursor=pointer]

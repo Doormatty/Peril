@@ -1,0 +1,13 @@
+{
+  "base_url": "https://j-archive.com/",
+  "db_path": "jarchive.sqlite3",
+  "raw_dir": "raw_html",
+  "min_delay_seconds": 5,
+  "max_delay_seconds": 15,
+  "max_requests_per_day": 2048,
+  "max_requests_per_run": null,
+  "recent_game_years": 10,
+  "recent_game_bias": 0.9,
+  "exclude_current_season": true,
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0"
+}

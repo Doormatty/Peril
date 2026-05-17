@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/web_app_logic.test.mjs",
+    "test:web": "node tests/web_app_logic.test.mjs",
+    "check:web": "node --check web/app.js && node --check web/gameLogic.mjs"
+  }
+}

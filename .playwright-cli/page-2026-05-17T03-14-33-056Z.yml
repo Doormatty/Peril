@@ -1,0 +1,24 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - heading "Peril" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - generic [ref=e7]: Score
+      - strong [ref=e8]: $0
+  - main [ref=e9]:
+    - complementary "Games" [ref=e10]:
+      - button "Collapse game selection" [expanded] [ref=e11] [cursor=pointer]: <
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: Seasons
+          - button "Random" [ref=e15] [cursor=pointer]
+        - searchbox "Seasons" [ref=e16]
+        - status [ref=e17]: "Could not load SQLite database. Last error: 404 File not found"
+        - generic "Seasons and playable games" [ref=e18]
+    - region "Game board" [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - paragraph [ref=e22]: No Game Selected
+          - heading "Choose a game" [level=2] [ref=e23]
+        - button "Reset" [disabled] [ref=e24]
+      - generic [ref=e25]:
+        - navigation "Rounds"

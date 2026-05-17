@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="Peril" uuid="afa5c92c-a67f-4e2f-a831-65a25e0efd05">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:\\wsl.localhost\Ubuntu\home\matt\Peril?nolock=1</jdbc-url>
+      <working-dir>C:\tmp</working-dir>
+    </data-source>
+  </component>
+</project>
