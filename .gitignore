@@ -4,4 +4,5 @@ __pycache__/
 .pytest_cache/
 *.pyc
 jarchive.sqlite3
+!web/jarchive.sqlite3
 raw_html/

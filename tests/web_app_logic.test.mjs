@@ -24,13 +24,13 @@ import {
   seasonTotalGames
 } from "../web/gameLogic.mjs";
 
-test("databaseUrlCandidates prefers the repo-root database when served from /web/", () => {
+test("databaseUrlCandidates prefers the colocated database when served from /web/", () => {
   assert.deepEqual(
     databaseUrlCandidates({
       pathname: "/web/index.html",
       config: { dbUrl: "jarchive.sqlite3" }
     }),
-    ["../jarchive.sqlite3", "jarchive.sqlite3"]
+    ["jarchive.sqlite3", "../jarchive.sqlite3"]
   );
 });
 

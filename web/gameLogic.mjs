@@ -7,11 +7,8 @@ export function databaseUrlCandidates({ search = "", pathname = "", config = {} 
   const configured = params.get("db") || config.dbUrl || "jarchive.sqlite3";
   const urls = [];
 
-  if (!params.has("db") && !configured.includes("/") && pathname.includes("/web/")) {
-    urls.push(`../${configured}`);
-  }
   urls.push(configured);
-  if (!configured.includes("/") && !configured.startsWith(".")) {
+  if (!params.has("db") && !configured.includes("/") && !configured.startsWith(".") && pathname.includes("/web/")) {
     urls.push(`../${configured}`);
   }
   return [...new Set(urls)];
