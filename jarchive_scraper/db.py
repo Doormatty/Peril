@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 import random
+import re
 import sqlite3
 from typing import Iterable, Iterator
 
@@ -12,8 +13,44 @@ from .config import ScraperConfig
 
 QUEUE_STATUSES = {"pending", "fetched", "failed", "parsed"}
 URL_TYPES = {"season_index", "season", "game"}
-PARSER_VERSION = "2026-05-16.1"
+PARSER_VERSION = "2026-05-18.1"
 CRAWL_TABLES = ("fetches", "queue", "fetch_attempts", "parse_errors")
+NAME_TOKEN_RE = re.compile(r"[a-z]+(?:'[a-z]+)?", re.IGNORECASE)
+RESPONSE_NAME_ALIASES = {
+    "al": ("alan", "allen", "alfred", "alexander"),
+    "alex": ("alexander", "alexandra", "alexandria"),
+    "andy": ("andrew", "andrea"),
+    "barb": ("barbara",),
+    "ben": ("benjamin",),
+    "beth": ("elizabeth",),
+    "bill": ("william",),
+    "bob": ("robert",),
+    "bobby": ("robert",),
+    "cathy": ("catherine", "katherine", "kathryn"),
+    "chris": ("christopher", "christine", "christina", "christian"),
+    "cindy": ("cynthia",),
+    "dan": ("daniel", "danielle"),
+    "dave": ("david",),
+    "deb": ("deborah", "debra"),
+    "ed": ("edward", "edwin", "edmund"),
+    "frank": ("francis",),
+    "jim": ("james",),
+    "joe": ("joseph",),
+    "kate": ("katherine", "kathryn", "catherine"),
+    "kathy": ("katherine", "kathryn", "catherine"),
+    "ken": ("kenneth",),
+    "liz": ("elizabeth",),
+    "mike": ("michael",),
+    "nick": ("nicholas",),
+    "pat": ("patrick", "patricia"),
+    "rob": ("robert",),
+    "ron": ("ronald",),
+    "sam": ("samuel", "samantha"),
+    "steve": ("stephen", "steven"),
+    "sue": ("susan", "suzanne"),
+    "tom": ("thomas",),
+    "tony": ("anthony",),
+}
 
 
 def utc_now() -> str:
@@ -79,8 +116,6 @@ def init_main_db(conn: sqlite3.Connection) -> None:
             season_id TEXT,
             title TEXT,
             notes TEXT,
-            source_url TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
             FOREIGN KEY (season_id) REFERENCES seasons(season_id) ON DELETE SET NULL
         );
 
@@ -88,51 +123,42 @@ def init_main_db(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY,
             game_id TEXT NOT NULL,
             name TEXT NOT NULL,
-            position_order INTEGER NOT NULL,
             notes TEXT,
-            FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
-            UNIQUE (game_id, position_order)
-        );
-
-        CREATE TABLE IF NOT EXISTS rounds (
-            id INTEGER PRIMARY KEY,
-            game_id TEXT NOT NULL,
-            name TEXT NOT NULL,
-            round_order INTEGER NOT NULL,
             FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
             UNIQUE (game_id, name)
         );
 
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY,
-            round_id INTEGER NOT NULL,
+            game_id TEXT NOT NULL,
+            round_order INTEGER NOT NULL,
             name TEXT NOT NULL,
             board_position INTEGER NOT NULL,
-            FOREIGN KEY (round_id) REFERENCES rounds(id) ON DELETE CASCADE,
-            UNIQUE (round_id, board_position)
+            FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+            UNIQUE (game_id, round_order, board_position)
         );
 
         CREATE TABLE IF NOT EXISTS clues (
             id INTEGER PRIMARY KEY,
             category_id INTEGER NOT NULL,
             row_value INTEGER,
-            dollar_value TEXT,
             clue_text TEXT,
             correct_response TEXT,
-            clue_order INTEGER NOT NULL,
             is_daily_double INTEGER NOT NULL DEFAULT 0,
-            source_clue_id TEXT,
+            is_final_jeopardy INTEGER NOT NULL DEFAULT 0,
+            is_triple_stumper INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-            UNIQUE (category_id, row_value, source_clue_id)
+            UNIQUE (category_id, row_value)
         );
 
         CREATE TABLE IF NOT EXISTS responses (
             id INTEGER PRIMARY KEY,
-            clue_id INTEGER,
-            contestant TEXT,
-            response_text TEXT NOT NULL,
-            correctness TEXT,
-            FOREIGN KEY (clue_id) REFERENCES clues(id) ON DELETE CASCADE
+            clue_id INTEGER NOT NULL,
+            contestant_id INTEGER NOT NULL,
+            response_text TEXT,
+            correctness INTEGER NOT NULL CHECK (correctness IN (0, 1)),
+            FOREIGN KEY (clue_id) REFERENCES clues(id) ON DELETE CASCADE,
+            FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS scores (
@@ -144,8 +170,108 @@ def init_main_db(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
         );
 
-        CREATE INDEX IF NOT EXISTS idx_games_source_url ON games(source_url);
         CREATE INDEX IF NOT EXISTS idx_games_air_date ON games(air_date);
+        CREATE INDEX IF NOT EXISTS idx_categories_game_round ON categories(game_id, round_order);
+        CREATE INDEX IF NOT EXISTS idx_clues_category ON clues(category_id);
+        CREATE INDEX IF NOT EXISTS idx_responses_clue ON responses(clue_id);
+        """
+    )
+    migrate_categories_schema(conn)
+    migrate_responses_schema(conn)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_responses_contestant ON responses(contestant_id)"
+    )
+
+
+def migrate_categories_schema(conn: sqlite3.Connection) -> None:
+    if not table_exists(conn, "categories"):
+        return
+
+    expected_columns = {
+        "id",
+        "game_id",
+        "round_order",
+        "name",
+        "board_position",
+    }
+    if set(table_columns(conn, "categories")) == expected_columns:
+        return
+
+    conn.execute("DROP TABLE IF EXISTS responses")
+    conn.execute("DROP TABLE IF EXISTS clues")
+    conn.execute("DROP TABLE IF EXISTS categories")
+    conn.executescript(
+        """
+        CREATE TABLE categories (
+            id INTEGER PRIMARY KEY,
+            game_id TEXT NOT NULL,
+            round_order INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            board_position INTEGER NOT NULL,
+            FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+            UNIQUE (game_id, round_order, board_position)
+        );
+
+        CREATE TABLE clues (
+            id INTEGER PRIMARY KEY,
+            category_id INTEGER NOT NULL,
+            row_value INTEGER,
+            clue_text TEXT,
+            correct_response TEXT,
+            is_daily_double INTEGER NOT NULL DEFAULT 0,
+            is_final_jeopardy INTEGER NOT NULL DEFAULT 0,
+            is_triple_stumper INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+            UNIQUE (category_id, row_value)
+        );
+
+        CREATE TABLE responses (
+            id INTEGER PRIMARY KEY,
+            clue_id INTEGER NOT NULL,
+            contestant_id INTEGER NOT NULL,
+            response_text TEXT,
+            correctness INTEGER NOT NULL CHECK (correctness IN (0, 1)),
+            FOREIGN KEY (clue_id) REFERENCES clues(id) ON DELETE CASCADE,
+            FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_categories_game_round ON categories(game_id, round_order);
+        CREATE INDEX IF NOT EXISTS idx_clues_category ON clues(category_id);
+        CREATE INDEX IF NOT EXISTS idx_responses_clue ON responses(clue_id);
+        CREATE INDEX IF NOT EXISTS idx_responses_contestant ON responses(contestant_id);
+        """
+    )
+
+
+def migrate_responses_schema(conn: sqlite3.Connection) -> None:
+    if not table_exists(conn, "responses"):
+        return
+
+    expected_columns = {
+        "id",
+        "clue_id",
+        "contestant_id",
+        "response_text",
+        "correctness",
+    }
+    if set(table_columns(conn, "responses")) == expected_columns:
+        return
+
+    conn.execute("DROP TABLE responses")
+    conn.executescript(
+        """
+        CREATE TABLE responses (
+            id INTEGER PRIMARY KEY,
+            clue_id INTEGER NOT NULL,
+            contestant_id INTEGER NOT NULL,
+            response_text TEXT,
+            correctness INTEGER NOT NULL CHECK (correctness IN (0, 1)),
+            FOREIGN KEY (clue_id) REFERENCES clues(id) ON DELETE CASCADE,
+            FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_responses_clue ON responses(clue_id);
+        CREATE INDEX IF NOT EXISTS idx_responses_contestant ON responses(contestant_id);
         """
     )
 
@@ -250,6 +376,57 @@ def table_columns(conn: sqlite3.Connection, table: str) -> list[str]:
     return [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
 
 
+def resolve_response_contestant_id(
+    contestants: Iterable[tuple[int, str]],
+    raw_name: str | None,
+) -> int | None:
+    if not raw_name:
+        return None
+
+    contestant_rows = [
+        (contestant_id, name, name_tokens(name))
+        for contestant_id, name in contestants
+    ]
+    response_tokens = name_tokens(raw_name)
+    if not response_tokens:
+        return None
+
+    exact_name = " ".join(response_tokens)
+    exact_matches = [
+        contestant_id
+        for contestant_id, _name, tokens in contestant_rows
+        if " ".join(tokens) == exact_name
+    ]
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+
+    response_key = response_tokens[0]
+    for token in (response_key, *RESPONSE_NAME_ALIASES.get(response_key, ())):
+        first_name_matches = [
+            contestant_id
+            for contestant_id, _name, tokens in contestant_rows
+            if tokens and tokens[0] == token
+        ]
+        if len(first_name_matches) == 1:
+            return first_name_matches[0]
+
+    token_matches = [
+        contestant_id
+        for contestant_id, _name, tokens in contestant_rows
+        if response_key in tokens
+    ]
+    if len(token_matches) == 1:
+        return token_matches[0]
+
+    return None
+
+
+def name_tokens(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [match.group(0).casefold() for match in NAME_TOKEN_RE.finditer(value)]
+
+
 def migrate_legacy_crawl_state(
     data_conn: sqlite3.Connection,
     crawl_conn: sqlite3.Connection,
@@ -294,14 +471,26 @@ def sync_queue_air_dates(
 ) -> int:
     if not table_exists(data_conn, "games") or not table_exists(crawl_conn, "queue"):
         return 0
-    rows = data_conn.execute(
-        """
-        SELECT source_url, air_date
-        FROM games
-        WHERE source_url IS NOT NULL
-          AND air_date IS NOT NULL
-        """
-    ).fetchall()
+    game_columns = set(table_columns(data_conn, "games"))
+    if "source_url" in game_columns:
+        rows = data_conn.execute(
+            """
+            SELECT source_url, air_date
+            FROM games
+            WHERE source_url IS NOT NULL
+              AND air_date IS NOT NULL
+            """
+        ).fetchall()
+    else:
+        rows = data_conn.execute(
+            """
+            SELECT
+              'https://j-archive.com/showgame.php?game_id=' || game_id AS source_url,
+              air_date
+            FROM games
+            WHERE air_date IS NOT NULL
+            """
+        ).fetchall()
     cur = crawl_conn.executemany(
         """
         UPDATE queue
@@ -675,16 +864,14 @@ def upsert_game_summaries(conn: sqlite3.Connection, games: Iterable[object]) -> 
         conn.execute(
             """
             INSERT INTO games
-                (game_id, show_number, air_date, season_id, title, notes, source_url, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (game_id, show_number, air_date, season_id, title, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(game_id) DO UPDATE SET
                 show_number = COALESCE(excluded.show_number, games.show_number),
                 air_date = COALESCE(excluded.air_date, games.air_date),
                 season_id = COALESCE(excluded.season_id, games.season_id),
                 title = COALESCE(excluded.title, games.title),
-                notes = COALESCE(excluded.notes, games.notes),
-                source_url = excluded.source_url,
-                updated_at = excluded.updated_at
+                notes = COALESCE(excluded.notes, games.notes)
             """,
             (
                 game.game_id,
@@ -693,8 +880,6 @@ def upsert_game_summaries(conn: sqlite3.Connection, games: Iterable[object]) -> 
                 season_id,
                 game.title,
                 game.notes,
-                game.url,
-                utc_now(),
             ),
         )
         count += 1
@@ -706,16 +891,14 @@ def replace_game_detail(conn: sqlite3.Connection, detail: object) -> None:
     conn.execute(
         """
         INSERT INTO games
-            (game_id, show_number, air_date, season_id, title, notes, source_url, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (game_id, show_number, air_date, season_id, title, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(game_id) DO UPDATE SET
             show_number = COALESCE(excluded.show_number, games.show_number),
             air_date = COALESCE(excluded.air_date, games.air_date),
             season_id = COALESCE(excluded.season_id, games.season_id),
             title = COALESCE(excluded.title, games.title),
-            notes = COALESCE(excluded.notes, games.notes),
-            source_url = excluded.source_url,
-            updated_at = excluded.updated_at
+            notes = COALESCE(excluded.notes, games.notes)
         """,
         (
             detail.game_id,
@@ -724,27 +907,26 @@ def replace_game_detail(conn: sqlite3.Connection, detail: object) -> None:
             season_id,
             detail.title,
             detail.notes,
-            detail.url,
-            utc_now(),
         ),
     )
     conn.execute("DELETE FROM contestants WHERE game_id = ?", (detail.game_id,))
     conn.execute("DELETE FROM scores WHERE game_id = ?", (detail.game_id,))
-    conn.execute("DELETE FROM rounds WHERE game_id = ?", (detail.game_id,))
+    conn.execute("DELETE FROM categories WHERE game_id = ?", (detail.game_id,))
 
+    contestants: list[tuple[int, str]] = []
     for contestant in detail.contestants:
-        conn.execute(
+        cur = conn.execute(
             """
-            INSERT INTO contestants (game_id, name, position_order, notes)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO contestants (game_id, name, notes)
+            VALUES (?, ?, ?)
             """,
             (
                 detail.game_id,
                 contestant.name,
-                contestant.position_order,
                 contestant.notes,
             ),
         )
+        contestants.append((int(cur.lastrowid), contestant.name))
 
     for score in detail.scores:
         conn.execute(
@@ -756,53 +938,58 @@ def replace_game_detail(conn: sqlite3.Connection, detail: object) -> None:
         )
 
     for round_data in detail.rounds:
-        cur = conn.execute(
-            """
-            INSERT INTO rounds (game_id, name, round_order)
-            VALUES (?, ?, ?)
-            """,
-            (detail.game_id, round_data.name, round_data.round_order),
-        )
-        round_id = cur.lastrowid
         for category in round_data.categories:
             cur = conn.execute(
                 """
-                INSERT INTO categories (round_id, name, board_position)
-                VALUES (?, ?, ?)
+                INSERT INTO categories
+                    (game_id, round_order, name, board_position)
+                VALUES (?, ?, ?, ?)
                 """,
-                (round_id, category.name, category.board_position),
+                (
+                    detail.game_id,
+                    round_data.round_order,
+                    category.name,
+                    category.board_position,
+                ),
             )
             category_id = cur.lastrowid
             for clue in category.clues:
                 cur = conn.execute(
                     """
                     INSERT INTO clues
-                        (category_id, row_value, dollar_value, clue_text, correct_response,
-                         clue_order, is_daily_double, source_clue_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        (category_id, row_value, clue_text, correct_response,
+                         is_daily_double, is_final_jeopardy, is_triple_stumper)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         category_id,
                         clue.row,
-                        clue.value,
                         clue.clue_text,
                         clue.correct_response,
-                        clue.clue_order,
                         1 if clue.is_daily_double else 0,
-                        clue.source_clue_id,
+                        1 if clue.is_final_jeopardy else 0,
+                        1 if clue.is_triple_stumper else 0,
                     ),
                 )
                 clue_id = cur.lastrowid
                 for response in clue.responses:
+                    if response.correctness not in (0, 1):
+                        continue
+                    contestant_id = resolve_response_contestant_id(
+                        contestants,
+                        response.contestant,
+                    )
+                    if contestant_id is None:
+                        continue
                     conn.execute(
                         """
                         INSERT INTO responses
-                            (clue_id, contestant, response_text, correctness)
+                            (clue_id, contestant_id, response_text, correctness)
                         VALUES (?, ?, ?, ?)
                         """,
                         (
                             clue_id,
-                            response.contestant,
+                            contestant_id,
                             response.response_text,
                             response.correctness,
                         ),

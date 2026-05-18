@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  answerMatches,
   baseClueAmount,
   clueLabel,
   clueRows,
@@ -15,6 +16,7 @@ import {
   isFinalRound,
   listPlayableGames,
   maxWager,
+  normalizeAnswerText,
   parseDollarValue,
   progressKey,
   scoringAmount,
@@ -71,8 +73,8 @@ test("round helpers select playable rounds and board rows", () => {
   };
   const category = {
     clues: [
-      { id: 1, row_value: 3, clue_order: 8 },
-      { id: 2, row_value: null, clue_order: 1 }
+      { id: 1, row_value: 3 },
+      { id: 2, row_value: null }
     ]
   };
 
@@ -87,8 +89,6 @@ test("clue labels and base amounts follow round and daily double rules", () => {
   const finalRound = { name: "Final Jeopardy!" };
   const dailyDouble = {
     row_value: 2,
-    dollar_value: "$400",
-    value_amount: 400,
     is_daily_double: true
   };
 
@@ -97,7 +97,9 @@ test("clue labels and base amounts follow round and daily double rules", () => {
   assert.equal(clueLabel(singleRound, dailyDouble), "$400");
   assert.equal(clueValueLabel(singleRound, dailyDouble), "$400 · Daily Double");
   assert.equal(clueLabel(finalRound, { is_daily_double: false }), "Final");
+  assert.equal(clueLabel({ name: "Tiebreaker" }, { is_final_jeopardy: true }), "Final");
   assert.equal(isFinalRound(finalRound), true);
+  assert.equal(isFinalRound({ name: "Tiebreaker" }, { is_final_jeopardy: true }), true);
 });
 
 test("wager scoring clamps invalid and excessive wager input", () => {
@@ -124,6 +126,14 @@ test("final round wager cannot exceed the current score", () => {
   assert.equal(scoringAmount(round, clue, { score: 2500, wagerValue: "3000" }), 2500);
 });
 
+test("regular clue scoring is derived from round and row", () => {
+  const round = { name: "Double Jeopardy!" };
+  const clue = { row_value: 4, is_daily_double: false };
+
+  assert.equal(clueLabel(round, clue), "$1,600");
+  assert.equal(scoringAmount(round, clue, { score: 0, wagerValue: "" }), 1600);
+});
+
 test("formatting helpers keep UI labels stable", () => {
   assert.equal(parseDollarValue("$1,200"), 1200);
   assert.equal(parseDollarValue("-$400"), -400);
@@ -134,6 +144,16 @@ test("formatting helpers keep UI labels stable", () => {
     gameMeta({ air_date: "2024-04-01", show_number: "9210", clue_count: 61 }),
     "2024-04-01 · #9210 · 61 clues"
   );
+});
+
+test("answer matching accepts normalized player attempts", () => {
+  assert.equal(normalizeAnswerText("Robert  Jordan!"), "robert jordan");
+  assert.equal(answerMatches("robert  jordan", "Robert Jordan"), true);
+  assert.equal(answerMatches("Who is Robert Jordan?", "Robert Jordan"), true);
+  assert.equal(answerMatches("what's H2O", "H2O"), true);
+  assert.equal(answerMatches("George Washington", "<em>George Washington</em> (first president)"), true);
+  assert.equal(answerMatches("Robert", "Robert Jordan"), false);
+  assert.equal(answerMatches("", "Robert Jordan"), false);
 });
 
 test("season helpers prefer archived totals for progress labels", () => {

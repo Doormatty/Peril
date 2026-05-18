@@ -75,45 +75,46 @@ export function clueRows(categories) {
   const rows = new Set();
   for (const category of categories) {
     for (const clue of category.clues) {
-      rows.add(clue.row_value || clue.clue_order || 1);
+      rows.add(clue.row_value || 1);
     }
   }
   return [...rows].sort((a, b) => a - b);
 }
 
 export function findClueForRow(category, row) {
-  return category.clues.find((clue) => (clue.row_value || clue.clue_order || 1) === row);
+  return category.clues.find((clue) => (clue.row_value || 1) === row);
 }
 
 export function clueLabel(round, clue) {
-  if (isFinalRound(round)) {
+  if (isFinalRound(round, clue)) {
     return "Final";
   }
-  if (clue.is_daily_double) {
-    return formatMoney(baseClueAmount(round, clue));
-  }
-  return clue.dollar_value || "$?";
+  const amount = baseClueAmount(round, clue);
+  return amount ? formatMoney(amount) : "$?";
 }
 
 export function clueValueLabel(round, clue) {
-  const value = isFinalRound(round)
+  const value = isFinalRound(round, clue)
     ? "Final"
-    : clue.is_daily_double
+    : baseClueAmount(round, clue)
       ? formatMoney(baseClueAmount(round, clue))
-      : clue.dollar_value || "Clue";
+      : "Clue";
   const parts = [value];
   if (clue.is_daily_double) {
     parts.push("Daily Double");
   }
+  if (clue.is_triple_stumper) {
+    parts.push("Triple Stumper");
+  }
   return parts.join(" · ");
 }
 
-export function isFinalRound(round) {
-  return /final/i.test(round.name || "");
+export function isFinalRound(round, clue = null) {
+  return Boolean(clue?.is_final_jeopardy) || /final/i.test(round?.name || "");
 }
 
 export function scoringAmount(round, clue, { score, wagerValue } = {}) {
-  if (clue.is_daily_double || isFinalRound(round)) {
+  if (clue.is_daily_double || isFinalRound(round, clue)) {
     const max = maxWager(round, clue, score);
     const value = Number.parseInt(wagerValue, 10);
     if (!Number.isFinite(value)) {
@@ -121,11 +122,11 @@ export function scoringAmount(round, clue, { score, wagerValue } = {}) {
     }
     return Math.max(0, Math.min(value, max));
   }
-  return clue.value_amount || 0;
+  return baseClueAmount(round, clue);
 }
 
 export function maxWager(round, clue, score = 0) {
-  if (isFinalRound(round)) {
+  if (isFinalRound(round, clue)) {
     return Math.max(0, score);
   }
   const faceValue = baseClueAmount(round, clue);
@@ -133,7 +134,7 @@ export function maxWager(round, clue, score = 0) {
 }
 
 export function defaultWager(round, clue, max) {
-  if (isFinalRound(round)) {
+  if (isFinalRound(round, clue)) {
     return max;
   }
   return Math.min(max, baseClueAmount(round, clue));
@@ -164,6 +165,67 @@ export function parseDollarValue(value) {
     return 0;
   }
   return Number.parseInt(match[0].replace(/\$|,/g, ""), 10) || 0;
+}
+
+export function normalizeAnswerText(value) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(?:nbsp|amp|quot|apos|#39|#x27);/gi, decodeAnswerEntity)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[&]/g, " and ")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function answerMatches(attempt, correctResponse) {
+  const attemptVariants = answerTextVariants(attempt);
+  const correctVariants = new Set(answerTextVariants(correctResponse));
+  return attemptVariants.some((variant) => correctVariants.has(variant));
+}
+
+function answerTextVariants(value) {
+  const values = new Set([String(value ?? "")]);
+  for (const text of [...values]) {
+    values.add(text.replace(/\([^)]*\)/g, " "));
+    values.add(text.replace(/\[[^\]]*\]/g, " "));
+  }
+
+  const variants = new Set();
+  for (const text of values) {
+    const normalized = normalizeAnswerText(text);
+    if (!normalized) {
+      continue;
+    }
+    variants.add(normalized);
+    const stripped = normalized.replace(
+      /^(?:who|what|where|when|why|how)\s+(?:is|are|was|were|am|be|been|being|s)\s+/,
+      ""
+    );
+    if (stripped) {
+      variants.add(stripped);
+    }
+  }
+  return [...variants];
+}
+
+function decodeAnswerEntity(entity) {
+  switch (entity.toLowerCase()) {
+    case "&nbsp;":
+      return " ";
+    case "&amp;":
+      return "&";
+    case "&quot;":
+      return "\"";
+    case "&apos;":
+    case "&#39;":
+    case "&#x27;":
+      return "'";
+    default:
+      return " ";
+  }
 }
 
 export function formatMoney(value) {

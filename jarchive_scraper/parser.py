@@ -35,26 +35,24 @@ class GameSummary:
 @dataclass(frozen=True)
 class Contestant:
     name: str
-    position_order: int
     notes: str | None = None
 
 
 @dataclass(frozen=True)
 class Response:
-    response_text: str
     contestant: str | None = None
-    correctness: str | None = None
+    response_text: str | None = None
+    correctness: int | None = None
 
 
 @dataclass(frozen=True)
 class Clue:
     row: int | None
-    value: str | None
     clue_text: str | None
     correct_response: str | None
-    clue_order: int
     is_daily_double: bool = False
-    source_clue_id: str | None = None
+    is_final_jeopardy: bool = False
+    is_triple_stumper: bool = False
     responses: list[Response] = field(default_factory=list)
 
 
@@ -182,9 +180,16 @@ def parse_game_page(html: str, *, source_url: str) -> GameDetail:
         page_text,
         re.I,
     )
+    page_title = _page_title(soup)
+    if not title_match and page_title:
+        title_match = re.search(
+            r"Show\s+#(?P<show>[\w-]+),\s+aired\s+(?P<date>\d{4}-\d{2}-\d{2})",
+            page_title,
+            re.I,
+        )
     show_number = title_match.group("show") if title_match else None
-    air_date = title_match.group("date") if title_match else None
-    title = title_match.group(0) if title_match else _page_title(soup)
+    air_date = title_match.group("date") if title_match else _air_date_from_title(page_title)
+    title = _normalize_game_title(page_title)
     season_id = _season_link_id(soup)
 
     detail = GameDetail(
@@ -225,7 +230,7 @@ def _parse_contestants(soup: BeautifulSoup) -> list[Contestant]:
         if not name or name in seen:
             continue
         seen.add(name)
-        contestants.append(Contestant(name, len(contestants) + 1, notes))
+        contestants.append(Contestant(name, notes))
     return contestants
 
 
@@ -258,8 +263,7 @@ def _parse_board_round(root: Tag, name: str, order: int) -> Round:
             clues=[],
         )
 
-    clue_order = 0
-    for clue_cell in root.select("td.clue, .clue"):
+    for clue_cell in root.select("td.clue"):
         if not isinstance(clue_cell, Tag):
             continue
         source_clue_id = clue_cell.get("id")
@@ -267,14 +271,14 @@ def _parse_board_round(root: Tag, name: str, order: int) -> Round:
             clue_text_node = clue_cell.select_one(".clue_text")
             source_clue_id = clue_text_node.get("id") if clue_text_node else None
         column, row = _clue_position(str(source_clue_id or ""))
-        if column is None:
-            column = min(len(categories), len(categories) or 1)
+        if column is None or row is None:
+            continue
         if column not in categories:
             categories[column] = Category(f"Category {column}", column, [])
-        clue_order += 1
-        value_node = clue_cell.select_one(".clue_value, .clue_value_daily_double")
         clue_text_node = clue_cell.select_one(".clue_text") or clue_cell
-        correct_node = clue_cell.select_one(".correct_response")
+        response_node = _response_node_for(root, str(source_clue_id or ""))
+        correct_response = _correct_response(clue_cell, response_node)
+        responses, is_triple_stumper = _parse_responses(response_node)
         is_daily_double = bool(
             clue_cell.select_one(".clue_value_daily_double")
             or "daily_double" in " ".join(clue_cell.get("class", []))
@@ -282,17 +286,12 @@ def _parse_board_round(root: Tag, name: str, order: int) -> Round:
         categories[column].clues.append(
             Clue(
                 row=row,
-                value=_clean_text(value_node.get_text(" ", strip=True)) if value_node else None,
                 clue_text=_clean_text(clue_text_node.get_text(" ", strip=True)),
-                correct_response=(
-                    _clean_text(correct_node.get_text(" ", strip=True))
-                    if correct_node
-                    else None
-                ),
-                clue_order=clue_order,
+                correct_response=correct_response,
                 is_daily_double=is_daily_double,
-                source_clue_id=str(source_clue_id) if source_clue_id else None,
-                responses=_parse_responses(clue_cell),
+                is_final_jeopardy=False,
+                is_triple_stumper=is_triple_stumper,
+                responses=responses,
             )
         )
 
@@ -306,43 +305,68 @@ def _parse_board_round(root: Tag, name: str, order: int) -> Round:
 def _parse_final_round(root: Tag, name: str, order: int) -> Round:
     category_node = root.select_one(".category_name")
     clue_node = root.select_one(".clue_text")
-    correct_node = root.select_one(".correct_response")
+    source_clue_id = str(clue_node.get("id")) if clue_node and clue_node.get("id") else "clue_FJ"
+    response_node = _response_node_for(root, source_clue_id)
+    correct_response = _correct_response(root, response_node)
+    responses, is_triple_stumper = _parse_responses(response_node)
     category = Category(
         name=_clean_text(category_node.get_text(" ", strip=True)) if category_node else "Final Jeopardy",
         board_position=1,
         clues=[
             Clue(
                 row=1,
-                value=None,
                 clue_text=_clean_text(clue_node.get_text(" ", strip=True)) if clue_node else None,
-                correct_response=(
-                    _clean_text(correct_node.get_text(" ", strip=True))
-                    if correct_node
-                    else None
-                ),
-                clue_order=1,
-                source_clue_id="final",
-                responses=_parse_responses(root),
+                correct_response=correct_response,
+                is_final_jeopardy=True,
+                is_triple_stumper=is_triple_stumper,
+                responses=responses,
             )
         ],
     )
     return Round(name=name, round_order=order, categories=[category])
 
 
-def _parse_responses(root: Tag) -> list[Response]:
+def _parse_responses(root: Tag | None) -> tuple[list[Response], bool]:
     responses: list[Response] = []
-    for node in root.select(".response, .right_response, .wrong_response"):
+    if root is None:
+        return responses, False
+
+    wrong_response_texts = _parenthesized_response_texts(root)
+    is_triple_stumper = False
+    seen: set[tuple[str | None, str | None, int | None]] = set()
+    for node in root.select(".right, .wrong, .response, .right_response, .wrong_response"):
         text = _clean_text(node.get_text(" ", strip=True))
         if not text:
             continue
         classes = set(node.get("class", []))
         correctness = None
-        if "right_response" in classes:
-            correctness = "right"
-        elif "wrong_response" in classes:
-            correctness = "wrong"
-        responses.append(Response(response_text=text, correctness=correctness))
-    return responses
+        if "right" in classes or "right_response" in classes:
+            correctness = 1
+        elif "wrong" in classes or "wrong_response" in classes:
+            correctness = 0
+        if correctness is None:
+            continue
+        if text.lower() == "triple stumper":
+            is_triple_stumper = True
+            continue
+
+        contestant = text
+        response_text = _adjacent_response_text(node)
+        if response_text is None and correctness == 0:
+            response_text = wrong_response_texts.get(contestant)
+
+        key = (contestant, response_text, correctness)
+        if key in seen:
+            continue
+        seen.add(key)
+        responses.append(
+            Response(
+                contestant=contestant,
+                response_text=response_text,
+                correctness=correctness,
+            )
+        )
+    return responses, is_triple_stumper
 
 
 def _parse_scores(soup: BeautifulSoup) -> list[Score]:
@@ -359,11 +383,82 @@ def _parse_scores(soup: BeautifulSoup) -> list[Score]:
     return scores
 
 
+def _response_node_for(root: Tag, source_clue_id: str) -> Tag | None:
+    if not source_clue_id:
+        return None
+    response_id = source_clue_id if source_clue_id.endswith("_r") else f"{source_clue_id}_r"
+    node = root.find(id=response_id)
+    return node if isinstance(node, Tag) else None
+
+
+def _correct_response(visible_root: Tag, response_root: Tag | None) -> str | None:
+    for root in (response_root, visible_root):
+        if root is None:
+            continue
+        correct_node = root.select_one(".correct_response")
+        if correct_node:
+            text = _clean_text(correct_node.get_text(" ", strip=True))
+            if text:
+                return text
+    return None
+
+
+def _parenthesized_response_texts(root: Tag) -> dict[str, str]:
+    correct_node = root.select_one(".correct_response")
+    transcript = _clean_text(_text_before(root, correct_node))
+    responses: dict[str, str] = {}
+    for match in re.finditer(r"\((?P<name>[^:()]{1,80}):\s*(?P<response>[^()]*)\)", transcript):
+        name = _clean_text(match.group("name"))
+        response = _clean_text(match.group("response"))
+        if name and response:
+            responses[name] = response
+    return responses
+
+
+def _text_before(root: Tag, stop_node: Tag | None) -> str:
+    parts: list[str] = []
+    for child in root.children:
+        if stop_node is not None and child is stop_node:
+            break
+        if isinstance(child, Tag):
+            if stop_node is not None and stop_node in child.descendants:
+                break
+            if child.name == "br":
+                parts.append("\n")
+            elif child.name != "table":
+                parts.append(child.get_text(" ", strip=True))
+        else:
+            parts.append(str(child))
+    return " ".join(parts)
+
+
+def _adjacent_response_text(node: Tag) -> str | None:
+    row = node.find_parent("tr")
+    if not row:
+        return None
+    cells = [cell for cell in row.find_all("td", recursive=False)]
+    try:
+        index = cells.index(node)
+    except ValueError:
+        return None
+    for cell in cells[index + 1 :]:
+        classes = set(cell.get("class", []))
+        if classes.intersection({"right", "wrong", "right_response", "wrong_response"}):
+            continue
+        text = _clean_text(cell.get_text(" ", strip=True))
+        if text and not _parse_score(text):
+            return text
+    return None
+
+
 def _parse_score(text: str) -> int | None:
     match = re.search(r"-?\$?[\d,]+", text)
     if not match:
         return None
-    return int(match.group(0).replace("$", "").replace(",", ""))
+    score_text = match.group(0).replace("$", "").replace(",", "")
+    if not score_text or not re.search(r"\d", score_text):
+        return None
+    return int(score_text)
 
 
 def _query_value(url: str, key: str) -> str:
@@ -423,15 +518,17 @@ def _show_and_airdate(text: str) -> tuple[str | None, str | None]:
 
 
 def _clean_title(line: str, anchor_text: str) -> str | None:
-    title = line.replace(anchor_text, "", 1)
-    title = re.sub(
-        r"^\s*,?\s*aired\s+\d{4}-\d{2}-\d{2}\s*[:,-]?\s*",
-        "",
-        title,
-        flags=re.I,
+    show_listing = re.match(
+        r"^\s*(?:Show\s+)?#?[\w-]+\s*,\s+aired\s+\d{4}-\d{2}-\d{2}\s*(?P<separator>[:,-])?\s*(?P<rest>.*)$",
+        line,
+        re.I,
     )
-    title = _clean_text(title)
-    return title or None
+    if show_listing:
+        if show_listing.group("separator") == ":":
+            return _normalize_game_title(show_listing.group("rest"))
+        return None
+
+    return _normalize_game_title(line)
 
 
 def _season_link_id(soup: BeautifulSoup) -> str | None:
@@ -455,6 +552,35 @@ def _page_title(soup: BeautifulSoup) -> str | None:
         return _clean_text(soup.title.string)
     heading = soup.find(["h1", "h2"])
     return _clean_text(heading.get_text(" ", strip=True)) if heading else None
+
+
+def _air_date_from_title(title: str | None) -> str | None:
+    if not title:
+        return None
+    match = re.search(r"\baired\s+(\d{4}-\d{2}-\d{2})\b", title, re.I)
+    return match.group(1) if match else None
+
+
+def _normalize_game_title(title: str | None) -> str | None:
+    if not title:
+        return None
+    normalized = _clean_text(title)
+    normalized = re.sub(r"^J!\s+Archive\s*-\s*", "", normalized, flags=re.I)
+    normalized = re.sub(
+        r"\s*,\s*aired\s+\d{4}-\d{2}-\d{2}.*$",
+        "",
+        normalized,
+        flags=re.I,
+    )
+    normalized = re.sub(
+        r"\s*-\s*[A-Za-z]+,\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}\s*$",
+        "",
+        normalized,
+    )
+    normalized = _clean_text(normalized)
+    if re.fullmatch(r"(?:Show\s+)?#?[\w-]+", normalized, flags=re.I):
+        return None
+    return normalized or None
 
 
 def _clue_position(source_clue_id: str) -> tuple[int | None, int | None]:

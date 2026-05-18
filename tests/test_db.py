@@ -4,6 +4,7 @@ from datetime import date
 
 from jarchive_scraper import db
 from jarchive_scraper.config import ScraperConfig
+from jarchive_scraper.parser import parse_game_page
 
 
 def test_queue_transitions_through_fetched_failed_and_parsed(conn, config: ScraperConfig) -> None:
@@ -48,6 +49,133 @@ def test_queue_transitions_through_fetched_failed_and_parsed(conn, config: Scrap
     assert db.reset_retryable_failures(conn) == 1
     row = conn.execute("SELECT * FROM queue WHERE canonical_url = ?", (season_url,)).fetchone()
     assert row["status"] == "pending"
+
+
+def test_main_schema_removes_redundant_round_and_clue_fields(conn) -> None:
+    tables = {
+        row["name"]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    assert "rounds" not in tables
+
+    assert set(db.table_columns(conn, "games")) == {
+        "game_id",
+        "show_number",
+        "air_date",
+        "season_id",
+        "title",
+        "notes",
+    }
+    assert set(db.table_columns(conn, "contestants")) == {
+        "id",
+        "game_id",
+        "name",
+        "notes",
+    }
+    assert set(db.table_columns(conn, "categories")) == {
+        "id",
+        "game_id",
+        "round_order",
+        "name",
+        "board_position",
+    }
+    assert set(db.table_columns(conn, "clues")) == {
+        "id",
+        "category_id",
+        "row_value",
+        "clue_text",
+        "correct_response",
+        "is_daily_double",
+        "is_final_jeopardy",
+        "is_triple_stumper",
+    }
+    assert set(db.table_columns(conn, "responses")) == {
+        "id",
+        "clue_id",
+        "contestant_id",
+        "response_text",
+        "correctness",
+    }
+
+
+def test_replace_game_detail_stores_round_metadata_and_response_flags(conn, fixture_dir) -> None:
+    detail = parse_game_page(
+        (fixture_dir / "game_8811.html").read_text(encoding="utf-8"),
+        source_url="https://j-archive.com/showgame.php?game_id=8811",
+    )
+
+    db.replace_game_detail(conn, detail)
+
+    category = conn.execute(
+        """
+        SELECT round_order, name, board_position
+        FROM categories
+        WHERE game_id = ? AND board_position = 1
+        ORDER BY round_order
+        LIMIT 1
+        """,
+        ("8811",),
+    ).fetchone()
+    assert dict(category) == {
+        "round_order": 1,
+        "name": "SCIENCE",
+        "board_position": 1,
+    }
+
+    clue_flags = conn.execute(
+        """
+        SELECT
+          SUM(is_final_jeopardy) AS final_count,
+          SUM(is_triple_stumper) AS triple_count,
+          SUM(is_daily_double) AS daily_double_count
+        FROM clues
+        """
+    ).fetchone()
+    assert clue_flags["final_count"] == 1
+    assert clue_flags["triple_count"] == 1
+    assert clue_flags["daily_double_count"] == 1
+
+    responses = conn.execute(
+        """
+        SELECT c.name AS contestant, r.response_text, r.correctness
+        FROM responses r
+        JOIN contestants c ON c.id = r.contestant_id
+        ORDER BY r.id
+        """
+    ).fetchall()
+    assert [dict(row) for row in responses] == [
+        {
+            "contestant": "Bob Example",
+            "response_text": "What is oxygen?",
+            "correctness": 0,
+        },
+        {"contestant": "Alice Example", "response_text": None, "correctness": 1},
+        {"contestant": "Carol Example", "response_text": None, "correctness": 1},
+        {
+            "contestant": "Alice Example",
+            "response_text": "What is Paris?",
+            "correctness": 1,
+        },
+        {
+            "contestant": "Bob Example",
+            "response_text": "What is Lyon?",
+            "correctness": 0,
+        },
+    ]
+
+
+def test_response_contestant_resolver_handles_display_names_and_aliases() -> None:
+    contestants = [
+        (1, "John Michael Higgins"),
+        (2, "Matt Rogers"),
+        (3, "Robert Nashin"),
+    ]
+
+    assert db.resolve_response_contestant_id(contestants, "John Michael Higgins") == 1
+    assert db.resolve_response_contestant_id(contestants, "Michael!") == 1
+    assert db.resolve_response_contestant_id(contestants, "Matt") == 2
+    assert db.resolve_response_contestant_id(contestants, "Bob") == 3
+    assert db.resolve_response_contestant_id(contestants, "Unknown") is None
 
 
 def test_init_db_drops_legacy_fetch_columns(tmp_path) -> None:
@@ -146,10 +274,9 @@ def test_init_storage_migrates_legacy_crawl_tables(tmp_path) -> None:
         db.enqueue(data_conn, game_url, "game", air_date="2024-01-01")
         data_conn.execute(
             """
-            INSERT INTO games (game_id, air_date, source_url, updated_at)
-            VALUES ('1', '2024-01-01', ?, '2026-05-16T00:00:00+00:00')
+            INSERT INTO games (game_id, air_date)
+            VALUES ('1', '2024-01-01')
             """,
-            (game_url,),
         )
         data_conn.execute("UPDATE queue SET air_date = NULL WHERE canonical_url = ?", (game_url,))
         db.record_fetch_success(

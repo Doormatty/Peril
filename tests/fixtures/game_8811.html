@@ -17,15 +17,29 @@
         <td class="category_name">HISTORY</td>
       </tr>
       <tr>
-        <td class="clue" id="clue_J_1_1">
-          <div class="clue_value">$200</div>
-          <div class="clue_text">Water is made of this molecule</div>
-          <em class="correct_response">H2O</em>
+        <td class="clue">
+          <table>
+            <tr>
+              <td id="clue_J_1_1" class="clue_text">Water is made of this molecule</td>
+              <td id="clue_J_1_1_r" class="clue_text" style="display:none;">
+                (Bob: What is oxygen?)<br><br>
+                <em class="correct_response">H2O</em><br><br>
+                <table><tr><td class="wrong">Bob</td><td class="right">Alice</td></tr></table>
+              </td>
+            </tr>
+          </table>
         </td>
-        <td class="clue" id="clue_J_2_1">
+        <td class="clue">
           <div class="clue_value_daily_double">$200</div>
-          <div class="clue_text">This city hosted the first modern Olympics</div>
-          <em class="correct_response">Athens</em>
+          <table>
+            <tr>
+              <td id="clue_J_2_1" class="clue_text">This city hosted the first modern Olympics</td>
+              <td id="clue_J_2_1_r" class="clue_text" style="display:none;">
+                <em class="correct_response">Athens</em><br><br>
+                <table><tr><td class="wrong">Triple Stumper</td></tr></table>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
@@ -34,18 +48,35 @@
         <td class="category_name">LITERATURE</td>
       </tr>
       <tr>
-        <td class="clue" id="clue_DJ_1_1">
-          <div class="clue_value">$400</div>
-          <div class="clue_text">Author of Hamlet</div>
-          <em class="correct_response">Shakespeare</em>
+        <td class="clue">
+          <table>
+            <tr>
+              <td id="clue_DJ_1_1" class="clue_text">Author of Hamlet</td>
+              <td id="clue_DJ_1_1_r" class="clue_text" style="display:none;">
+                <em class="correct_response">Shakespeare</em><br><br>
+                <table><tr><td class="right">Carol</td></tr></table>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
     <div id="final_jeopardy_round">
       <div class="category_name">WORLD CAPITALS</div>
-      <div class="clue_text">This capital sits on the Seine</div>
-      <em class="correct_response">Paris</em>
-      <div class="right_response">Alice: Paris</div>
+      <table>
+        <tr>
+          <td id="clue_FJ" class="clue_text">This capital sits on the Seine</td>
+          <td id="clue_FJ_r" class="clue_text" style="display:none;">
+            <table>
+              <tr><td class="right">Alice</td><td rowspan="2">What is Paris?</td></tr>
+              <tr><td>$2,000</td></tr>
+              <tr><td class="wrong">Bob</td><td rowspan="2">What is Lyon?</td></tr>
+              <tr><td>$1,000</td></tr>
+            </table>
+            <em class="correct_response">Paris</em>
+          </td>
+        </tr>
+      </table>
     </div>
     <table class="scores">
       <tr><th>Final</th><td>$12000</td><td>$9000</td><td>$1</td></tr>

@@ -165,7 +165,6 @@ def test_parse_from_fixture_flow_is_idempotent(tmp_path: Path, fixture_dir: Path
                 "seasons",
                 "games",
                 "contestants",
-                "rounds",
                 "categories",
                 "clues",
                 "responses",
@@ -187,10 +186,9 @@ def test_parse_from_fixture_flow_is_idempotent(tmp_path: Path, fixture_dir: Path
         "seasons": 3,
         "games": 2,
         "contestants": 3,
-        "rounds": 3,
         "categories": 4,
         "clues": 4,
-        "responses": 1,
+        "responses": 5,
         "scores": 3,
     }
     assert parse_error_count == 0

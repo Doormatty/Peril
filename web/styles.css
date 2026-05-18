@@ -589,6 +589,31 @@ h2 {
   font-weight: 750;
 }
 
+.correct-response.answer-match {
+  border-left-color: var(--green);
+}
+
+.archive-response-line {
+  margin: 0;
+}
+
+.archive-response-flag {
+  margin-top: 8px;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  letter-spacing: 0;
+}
+
+.archive-responses {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
 .dialog-actions {
   display: flex;
   flex-wrap: wrap;

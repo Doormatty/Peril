@@ -1,5 +1,6 @@
 import {
   SEARCH_DELAY_MS,
+  answerMatches,
   clueLabel,
   clueRows,
   clueValueLabel,
@@ -11,7 +12,6 @@ import {
   gameMeta,
   isFinalRound,
   maxWager,
-  parseDollarValue,
   placeholders,
   progressKey as buildProgressKey,
   scoringAmount,
@@ -36,6 +36,7 @@ const dom = {
   roundTabs: document.querySelector("#round-tabs"),
   board: document.querySelector("#board"),
   clueDialog: document.querySelector("#clue-dialog"),
+  clueForm: document.querySelector("#clue-dialog form"),
   clueCategory: document.querySelector("#clue-category"),
   clueValue: document.querySelector("#clue-value"),
   clueText: document.querySelector("#clue-text"),
@@ -92,6 +93,19 @@ const EFFECTIVE_SEASON_ID_SQL = `
     g.season_id
   )
 `;
+
+function roundNameForOrder(roundOrder) {
+  switch (Number(roundOrder)) {
+    case 1:
+      return "Jeopardy";
+    case 2:
+      return "Double Jeopardy";
+    case 3:
+      return "Final Jeopardy";
+    default:
+      return `Round ${roundOrder}`;
+  }
+}
 
 init().catch((error) => {
   console.error(error);
@@ -170,6 +184,10 @@ function bindEvents() {
   });
 
   dom.closeClue.addEventListener("click", closeClueDialog);
+  dom.clueForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    revealResponse();
+  });
   dom.revealResponse.addEventListener("click", revealResponse);
   dom.markCorrect.addEventListener("click", () => scoreActiveClue("correct"));
   dom.markWrong.addEventListener("click", () => scoreActiveClue("wrong"));
@@ -335,13 +353,12 @@ function loadPlayableGameSummaries() {
       g.air_date,
       ${EFFECTIVE_SEASON_ID_SQL} AS season_id,
       g.title,
-      COUNT(DISTINCT r.id) AS round_count,
+      COUNT(DISTINCT ca.round_order) AS round_count,
       COUNT(DISTINCT ca.id) AS category_count,
       COUNT(c.id) AS clue_count
     FROM games g
     LEFT JOIN seasons stored_season ON stored_season.season_id = g.season_id
-    JOIN rounds r ON r.game_id = g.game_id
-    JOIN categories ca ON ca.round_id = r.id
+    JOIN categories ca ON ca.game_id = g.game_id
     JOIN clues c ON c.category_id = ca.id
     GROUP BY g.game_id
     ORDER BY
@@ -373,8 +390,7 @@ function loadSeasonSummaries() {
     parsed_games AS (
       SELECT DISTINCT eg.game_id, eg.season_id
       FROM effective_games eg
-      JOIN rounds r ON r.game_id = eg.game_id
-      JOIN categories ca ON ca.round_id = r.id
+      JOIN categories ca ON ca.game_id = eg.game_id
       JOIN clues c ON c.category_id = ca.id
     ),
     parsed_counts AS (
@@ -535,8 +551,7 @@ function getGame(gameId) {
       g.air_date,
       ${EFFECTIVE_SEASON_ID_SQL} AS season_id,
       g.title,
-      g.notes,
-      g.source_url
+      g.notes
     FROM games g
     LEFT JOIN seasons stored_season ON stored_season.season_id = g.season_id
     WHERE g.game_id = ?
@@ -549,23 +564,29 @@ function getGame(gameId) {
 
   const roundRows = allRows(
     `
-    SELECT id, name, round_order
-    FROM rounds
+    SELECT
+      round_order,
+      COUNT(c.id) AS clue_count
+    FROM categories ca
+    LEFT JOIN clues c ON c.category_id = ca.id
     WHERE game_id = ?
-    ORDER BY round_order, id
+    GROUP BY round_order
+    ORDER BY round_order
     `,
     [gameId]
-  );
-  const roundIds = roundRows.map((round) => round.id);
-  const categoryRows = roundIds.length > 0
+  ).map((round) => ({
+    ...round,
+    name: roundNameForOrder(round.round_order)
+  }));
+  const categoryRows = roundRows.length > 0
     ? allRows(
         `
-        SELECT id, round_id, name, board_position
+        SELECT id, round_order, name, board_position
         FROM categories
-        WHERE round_id IN (${placeholders(roundIds.length)})
-        ORDER BY round_id, board_position, id
+        WHERE game_id = ?
+        ORDER BY round_order, board_position, id
         `,
-        roundIds
+        [gameId]
       )
     : [];
   const categoryIds = categoryRows.map((category) => category.id);
@@ -576,43 +597,70 @@ function getGame(gameId) {
           id,
           category_id,
           row_value,
-          dollar_value,
           clue_text,
           correct_response,
-          clue_order,
           is_daily_double,
-          source_clue_id
+          is_final_jeopardy,
+          is_triple_stumper
         FROM clues
         WHERE category_id IN (${placeholders(categoryIds.length)})
-        ORDER BY category_id, COALESCE(row_value, clue_order), clue_order, id
+        ORDER BY category_id, row_value, id
         `,
         categoryIds
       )
     : [];
+  const clueIds = clueRows.map((clue) => clue.id);
+  const responseRows = clueIds.length > 0
+    ? allRows(
+        `
+        SELECT
+          r.clue_id,
+          r.contestant_id,
+          c.name AS contestant,
+          r.response_text,
+          r.correctness
+        FROM responses r
+        JOIN contestants c ON c.id = r.contestant_id
+        WHERE r.clue_id IN (${placeholders(clueIds.length)})
+        ORDER BY r.clue_id, r.id
+        `,
+        clueIds
+      )
+    : [];
+
+  const responsesByClue = new Map();
+  for (const response of responseRows) {
+    const clueResponses = responsesByClue.get(response.clue_id) || [];
+    clueResponses.push(response);
+    responsesByClue.set(response.clue_id, clueResponses);
+  }
 
   const cluesByCategory = new Map();
   for (const clue of clueRows) {
     const categoryClues = cluesByCategory.get(clue.category_id) || [];
     categoryClues.push({
       ...clue,
-      value_amount: parseDollarValue(clue.dollar_value),
-      is_daily_double: Boolean(clue.is_daily_double)
+      is_daily_double: Boolean(clue.is_daily_double),
+      is_final_jeopardy: Boolean(clue.is_final_jeopardy),
+      is_triple_stumper: Boolean(clue.is_triple_stumper),
+      responses: responsesByClue.get(clue.id) || []
     });
     cluesByCategory.set(clue.category_id, categoryClues);
   }
 
   const categoriesByRound = new Map();
   for (const category of categoryRows) {
-    const roundCategories = categoriesByRound.get(category.round_id) || [];
+    const roundKey = category.round_order;
+    const roundCategories = categoriesByRound.get(roundKey) || [];
     roundCategories.push({
       ...category,
       clues: cluesByCategory.get(category.id) || []
     });
-    categoriesByRound.set(category.round_id, roundCategories);
+    categoriesByRound.set(roundKey, roundCategories);
   }
 
   const rounds = roundRows.map((round) => {
-    const categories = categoriesByRound.get(round.id) || [];
+    const categories = categoriesByRound.get(round.round_order) || [];
     return {
       ...round,
       categories,
@@ -627,10 +675,10 @@ function getGame(gameId) {
     },
     contestants: allRows(
       `
-      SELECT name, position_order, notes
+      SELECT name, notes
       FROM contestants
       WHERE game_id = ?
-      ORDER BY position_order
+      ORDER BY id
       `,
       [gameId]
     ),
@@ -728,7 +776,9 @@ function openClueDialog(round, category, clue) {
   dom.clueValue.textContent = clueValueLabel(round, clue);
   dom.clueText.textContent = clue.clue_text || "";
   dom.playerResponse.value = "";
+  dom.playerResponse.disabled = false;
   dom.correctResponse.hidden = true;
+  dom.correctResponse.className = "correct-response";
   dom.correctResponse.textContent = "";
   dom.revealResponse.hidden = false;
   dom.markCorrect.hidden = true;
@@ -756,8 +806,11 @@ function revealResponse() {
   if (!state.activeClue) {
     return;
   }
-  const response = state.activeClue.clue.correct_response || "No archived response.";
-  dom.correctResponse.textContent = response;
+  if (applyCorrectAttemptIfMatched()) {
+    return;
+  }
+  dom.correctResponse.className = "correct-response";
+  dom.correctResponse.replaceChildren(...archivedResponseNodes(state.activeClue.clue));
   dom.correctResponse.hidden = false;
   dom.revealResponse.hidden = true;
   dom.markCorrect.hidden = false;
@@ -766,11 +819,67 @@ function revealResponse() {
   dom.markCorrect.focus();
 }
 
-function scoreActiveClue(result) {
+function applyCorrectAttemptIfMatched() {
+  const { clue } = state.activeClue;
+  if (!dom.playerResponse.value.trim() || !answerMatches(dom.playerResponse.value, clue.correct_response)) {
+    return false;
+  }
+
+  dom.correctResponse.className = "correct-response answer-match";
+  dom.correctResponse.textContent = "Correct";
+  dom.correctResponse.hidden = false;
+  dom.playerResponse.disabled = true;
+  dom.revealResponse.hidden = true;
+  dom.markCorrect.hidden = true;
+  dom.markWrong.hidden = true;
+  dom.markPass.hidden = true;
+  scoreActiveClue("correct", { closeDialog: false });
+  dom.closeClue.focus();
+  return true;
+}
+
+function archivedResponseNodes(clue) {
+  const nodes = [];
+  const correct = document.createElement("p");
+  correct.className = "archive-response-line";
+  correct.textContent = `Correct response: ${clue.correct_response || "Not archived"}`;
+  nodes.push(correct);
+
+  if (clue.is_triple_stumper) {
+    const triple = document.createElement("p");
+    triple.className = "archive-response-line archive-response-flag";
+    triple.textContent = "Triple stumper";
+    nodes.push(triple);
+  }
+
+  if (clue.responses?.length) {
+    const list = document.createElement("ul");
+    list.className = "archive-responses";
+    for (const response of clue.responses) {
+      const item = document.createElement("li");
+      const label = response.correctness ? "Right" : "Wrong";
+      const responseText = response.response_text ? `: ${response.response_text}` : "";
+      item.textContent = `${label} - ${response.contestant || "Contestant"}${responseText}`;
+      list.append(item);
+    }
+    nodes.push(list);
+  }
+
+  return nodes;
+}
+
+function scoreActiveClue(result, { closeDialog = true } = {}) {
   if (!state.activeClue) {
     return;
   }
   const { round, clue } = state.activeClue;
+  const clueId = String(clue.id);
+  if (state.answered.has(clueId)) {
+    if (closeDialog) {
+      closeClueDialog();
+    }
+    return;
+  }
   const amount = scoringAmount(round, clue, {
     score: state.score,
     wagerValue: dom.wagerInput.value
@@ -780,11 +889,13 @@ function scoreActiveClue(result) {
   } else if (result === "wrong") {
     state.score -= amount;
   }
-  state.answered.add(String(clue.id));
+  state.answered.add(clueId);
   saveProgress();
   renderScore();
   renderBoard();
-  closeClueDialog();
+  if (closeDialog) {
+    closeClueDialog();
+  }
 }
 
 function closeClueDialog() {
