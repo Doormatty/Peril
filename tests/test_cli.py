@@ -267,7 +267,7 @@ def test_fetched_season_child_enqueue_records_game_dates_on_queue(conn, config, 
     )
 
     rows = conn.execute(
-        "SELECT canonical_url, air_date, discovered_from FROM queue ORDER BY canonical_url"
+        "SELECT canonical_url, air_date FROM queue ORDER BY canonical_url"
     ).fetchall()
 
     assert count == 2
@@ -275,12 +275,10 @@ def test_fetched_season_child_enqueue_records_game_dates_on_queue(conn, config, 
         {
             "air_date": "2024-01-15",
             "canonical_url": "https://j-archive.com/showgame.php?game_id=8811",
-            "discovered_from": "https://j-archive.com/showseason.php?season=40",
         },
         {
             "air_date": "2024-01-16",
             "canonical_url": "https://j-archive.com/showgame.php?game_id=8812",
-            "discovered_from": "https://j-archive.com/showseason.php?season=40",
         },
     ]
 

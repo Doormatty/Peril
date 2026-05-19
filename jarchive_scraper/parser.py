@@ -309,6 +309,7 @@ def _parse_final_round(root: Tag, name: str, order: int) -> Round:
     response_node = _response_node_for(root, source_clue_id)
     correct_response = _correct_response(root, response_node)
     responses, is_triple_stumper = _parse_responses(response_node)
+    is_triple_stumper = is_triple_stumper or _all_responses_wrong(responses)
     category = Category(
         name=_clean_text(category_node.get_text(" ", strip=True)) if category_node else "Final Jeopardy",
         board_position=1,
@@ -324,6 +325,10 @@ def _parse_final_round(root: Tag, name: str, order: int) -> Round:
         ],
     )
     return Round(name=name, round_order=order, categories=[category])
+
+
+def _all_responses_wrong(responses: list[Response]) -> bool:
+    return bool(responses) and all(response.correctness == 0 for response in responses)
 
 
 def _parse_responses(root: Tag | None) -> tuple[list[Response], bool]:

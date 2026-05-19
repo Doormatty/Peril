@@ -51,6 +51,30 @@ def test_queue_transitions_through_fetched_failed_and_parsed(conn, config: Scrap
     assert row["status"] == "pending"
 
 
+def test_crawl_schema_removes_redundant_queue_and_fetch_fields(conn) -> None:
+    assert set(db.table_columns(conn, "queue")) == {
+        "id",
+        "canonical_url",
+        "url_type",
+        "status",
+        "updated_at",
+        "attempts",
+        "last_error",
+        "air_date",
+    }
+    assert set(db.table_columns(conn, "fetches")) == {
+        "id",
+        "original_url",
+        "canonical_url",
+        "url_type",
+        "status_code",
+        "content_hash",
+        "raw_file_path",
+        "parser_state",
+        "error",
+    }
+
+
 def test_main_schema_removes_redundant_round_and_clue_fields(conn) -> None:
     tables = {
         row["name"]
@@ -178,7 +202,7 @@ def test_response_contestant_resolver_handles_display_names_and_aliases() -> Non
     assert db.resolve_response_contestant_id(contestants, "Unknown") is None
 
 
-def test_init_db_drops_legacy_fetch_columns(tmp_path) -> None:
+def test_init_db_migrates_legacy_fetch_schema(tmp_path) -> None:
     legacy_db = tmp_path / "legacy.sqlite3"
     conn = db.connect(legacy_db)
     try:
@@ -222,11 +246,17 @@ def test_init_db_drops_legacy_fetch_columns(tmp_path) -> None:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(fetches)")}
         assert "response_headers_json" not in columns
         assert "source_permission_note" not in columns
+        assert "first_fetched_at" not in columns
+        assert "last_attempted_at" not in columns
         row = conn.execute(
-            "SELECT canonical_url, content_hash FROM fetches"
+            "SELECT original_url, canonical_url, content_hash FROM fetches"
         ).fetchone()
-        assert row["canonical_url"] == "https://j-archive.com/showgame.php?game_id=1"
+        assert row["original_url"] == "https://j-archive.com/showgame.php?game_id=1"
+        assert row["canonical_url"] is None
         assert row["content_hash"] == "abc"
+        fetch = db.get_fetch(conn, "https://j-archive.com/showgame.php?game_id=1")
+        assert fetch is not None
+        assert fetch["canonical_url"] == "https://j-archive.com/showgame.php?game_id=1"
     finally:
         conn.close()
 

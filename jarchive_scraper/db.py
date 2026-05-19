@@ -16,6 +16,18 @@ URL_TYPES = {"season_index", "season", "game"}
 PARSER_VERSION = "2026-05-18.1"
 CRAWL_TABLES = ("fetches", "queue", "fetch_attempts", "parse_errors")
 NAME_TOKEN_RE = re.compile(r"[a-z]+(?:'[a-z]+)?", re.IGNORECASE)
+FETCH_SELECT_COLUMNS = """
+    id,
+    original_url,
+    COALESCE(canonical_url, original_url) AS canonical_url,
+    canonical_url AS stored_canonical_url,
+    url_type,
+    status_code,
+    content_hash,
+    raw_file_path,
+    parser_state,
+    error
+"""
 RESPONSE_NAME_ALIASES = {
     "al": ("alan", "allen", "alfred", "alexander"),
     "alex": ("alexander", "alexandra", "alexandria"),
@@ -282,13 +294,11 @@ def init_crawl_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS fetches (
             id INTEGER PRIMARY KEY,
             original_url TEXT NOT NULL,
-            canonical_url TEXT NOT NULL UNIQUE,
+            canonical_url TEXT,
             url_type TEXT NOT NULL CHECK (url_type IN ('season_index', 'season', 'game')),
             status_code INTEGER,
             content_hash TEXT,
             raw_file_path TEXT,
-            first_fetched_at TEXT,
-            last_attempted_at TEXT NOT NULL,
             parser_state TEXT NOT NULL DEFAULT 'unparsed',
             error TEXT
         );
@@ -298,8 +308,6 @@ def init_crawl_db(conn: sqlite3.Connection) -> None:
             canonical_url TEXT NOT NULL UNIQUE,
             url_type TEXT NOT NULL CHECK (url_type IN ('season_index', 'season', 'game')),
             status TEXT NOT NULL CHECK (status IN ('pending', 'fetched', 'failed', 'parsed')),
-            discovered_from TEXT,
-            discovered_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             attempts INTEGER NOT NULL DEFAULT 0,
             last_error TEXT,
@@ -322,23 +330,153 @@ def init_crawl_db(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL,
             FOREIGN KEY (fetch_id) REFERENCES fetches(id) ON DELETE CASCADE
         );
-
+        """
+    )
+    migrate_queue_schema(conn)
+    migrate_fetches_schema(conn)
+    conn.executescript(
+        """
         CREATE INDEX IF NOT EXISTS idx_queue_status_type ON queue(status, url_type);
         CREATE INDEX IF NOT EXISTS idx_queue_air_date ON queue(url_type, status, air_date);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_fetches_effective_url
+            ON fetches(COALESCE(canonical_url, original_url));
         CREATE INDEX IF NOT EXISTS idx_fetches_status ON fetches(status_code);
         CREATE INDEX IF NOT EXISTS idx_fetches_parser_state ON fetches(parser_state);
         CREATE INDEX IF NOT EXISTS idx_fetch_attempts_attempted_at ON fetch_attempts(attempted_at);
         """
     )
-    add_missing_column(conn, "queue", "air_date", "TEXT")
-    drop_legacy_fetch_columns(conn)
 
 
-def drop_legacy_fetch_columns(conn: sqlite3.Connection) -> None:
-    columns = {row["name"] for row in conn.execute("PRAGMA table_info(fetches)")}
-    for column in ("response_headers_json", "source_permission_note"):
-        if column in columns:
-            conn.execute(f"ALTER TABLE fetches DROP COLUMN {column}")
+def migrate_queue_schema(conn: sqlite3.Connection) -> None:
+    expected_columns = [
+        "id",
+        "canonical_url",
+        "url_type",
+        "status",
+        "updated_at",
+        "attempts",
+        "last_error",
+        "air_date",
+    ]
+    if table_columns(conn, "queue") == expected_columns:
+        return
+
+    source_columns = set(table_columns(conn, "queue"))
+    updated_at_expr = "updated_at" if "updated_at" in source_columns else "?"
+    if "updated_at" not in source_columns and "discovered_at" in source_columns:
+        updated_at_expr = "discovered_at"
+    attempts_expr = "COALESCE(attempts, 0)" if "attempts" in source_columns else "0"
+    last_error_expr = "last_error" if "last_error" in source_columns else "NULL"
+    air_date_expr = "air_date" if "air_date" in source_columns else "NULL"
+
+    conn.execute(
+        """
+        CREATE TABLE queue_new (
+            id INTEGER PRIMARY KEY,
+            canonical_url TEXT NOT NULL UNIQUE,
+            url_type TEXT NOT NULL CHECK (url_type IN ('season_index', 'season', 'game')),
+            status TEXT NOT NULL CHECK (status IN ('pending', 'fetched', 'failed', 'parsed')),
+            updated_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            air_date TEXT
+        )
+        """
+    )
+    conn.execute(
+        f"""
+        INSERT INTO queue_new
+            (id, canonical_url, url_type, status, updated_at, attempts, last_error, air_date)
+        SELECT
+            id,
+            canonical_url,
+            url_type,
+            status,
+            {updated_at_expr},
+            {attempts_expr},
+            {last_error_expr},
+            {air_date_expr}
+        FROM queue
+        """,
+        (() if "updated_at" in source_columns or "discovered_at" in source_columns else (utc_now(),)),
+    )
+    conn.execute("DROP TABLE queue")
+    conn.execute("ALTER TABLE queue_new RENAME TO queue")
+
+
+def migrate_fetches_schema(conn: sqlite3.Connection) -> None:
+    expected_columns = [
+        "id",
+        "original_url",
+        "canonical_url",
+        "url_type",
+        "status_code",
+        "content_hash",
+        "raw_file_path",
+        "parser_state",
+        "error",
+    ]
+    column_info = {
+        row["name"]: row
+        for row in conn.execute("PRAGMA table_info(fetches)")
+    }
+    if (
+        table_columns(conn, "fetches") == expected_columns
+        and not column_info["canonical_url"]["notnull"]
+    ):
+        normalize_fetch_canonical_urls(conn)
+        return
+
+    foreign_keys = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        conn.execute(
+            """
+            CREATE TABLE fetches_new (
+                id INTEGER PRIMARY KEY,
+                original_url TEXT NOT NULL,
+                canonical_url TEXT,
+                url_type TEXT NOT NULL CHECK (url_type IN ('season_index', 'season', 'game')),
+                status_code INTEGER,
+                content_hash TEXT,
+                raw_file_path TEXT,
+                parser_state TEXT NOT NULL DEFAULT 'unparsed',
+                error TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO fetches_new
+                (id, original_url, canonical_url, url_type, status_code, content_hash,
+                 raw_file_path, parser_state, error)
+            SELECT
+                id,
+                original_url,
+                NULLIF(canonical_url, original_url),
+                url_type,
+                status_code,
+                content_hash,
+                raw_file_path,
+                COALESCE(parser_state, 'unparsed'),
+                error
+            FROM fetches
+            """
+        )
+        conn.execute("DROP TABLE fetches")
+        conn.execute("ALTER TABLE fetches_new RENAME TO fetches")
+    finally:
+        conn.execute(f"PRAGMA foreign_keys = {foreign_keys}")
+
+
+def normalize_fetch_canonical_urls(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        UPDATE fetches
+        SET canonical_url = NULL
+        WHERE canonical_url = original_url
+        """
+    )
 
 
 def add_missing_column(
@@ -451,6 +589,8 @@ def migrate_legacy_crawl_state(
             f"INSERT OR IGNORE INTO {table} ({column_sql}) VALUES ({placeholders})",
             ([row[column] for column in columns] for row in rows),
         )
+    if table_exists(crawl_conn, "fetches"):
+        normalize_fetch_canonical_urls(crawl_conn)
 
 
 def drop_migrated_crawl_tables(
@@ -525,26 +665,25 @@ def enqueue(
         "SELECT 1 FROM queue WHERE canonical_url = ?", (canonical_url,)
     ).fetchone()
     if existing is not None:
-        if discovered_from is not None or air_date is not None:
+        if air_date is not None:
             conn.execute(
                 """
                 UPDATE queue
-                SET discovered_from = COALESCE(discovered_from, ?),
-                    air_date = COALESCE(air_date, ?),
+                SET air_date = COALESCE(air_date, ?),
                     updated_at = ?
                 WHERE canonical_url = ?
                 """,
-                (discovered_from, air_date, now, canonical_url),
+                (air_date, now, canonical_url),
             )
         return False
 
     conn.execute(
         """
         INSERT OR IGNORE INTO queue
-            (canonical_url, url_type, status, discovered_from, discovered_at, updated_at, air_date)
-        VALUES (?, ?, 'pending', ?, ?, ?, ?)
+            (canonical_url, url_type, status, updated_at, air_date)
+        VALUES (?, ?, 'pending', ?, ?)
         """,
-        (canonical_url, url_type, discovered_from, now, now, air_date),
+        (canonical_url, url_type, now, air_date),
     )
     return True
 
@@ -553,7 +692,9 @@ def successful_fetch_exists(conn: sqlite3.Connection, canonical_url: str) -> boo
     row = conn.execute(
         """
         SELECT 1 FROM fetches
-        WHERE canonical_url = ? AND status_code = 200 AND raw_file_path IS NOT NULL
+        WHERE COALESCE(canonical_url, original_url) = ?
+          AND status_code = 200
+          AND raw_file_path IS NOT NULL
         """,
         (canonical_url,),
     ).fetchone()
@@ -562,8 +703,17 @@ def successful_fetch_exists(conn: sqlite3.Connection, canonical_url: str) -> boo
 
 def get_fetch(conn: sqlite3.Connection, canonical_url: str) -> sqlite3.Row | None:
     return conn.execute(
-        "SELECT * FROM fetches WHERE canonical_url = ?", (canonical_url,)
+        f"""
+        SELECT {FETCH_SELECT_COLUMNS}
+        FROM fetches
+        WHERE COALESCE(canonical_url, original_url) = ?
+        """,
+        (canonical_url,),
     ).fetchone()
+
+
+def stored_fetch_canonical_url(original_url: str, canonical_url: str) -> str | None:
+    return None if original_url == canonical_url else canonical_url
 
 
 def record_fetch_success(
@@ -578,37 +728,28 @@ def record_fetch_success(
 ) -> sqlite3.Row:
     now = utc_now()
     record_fetch_attempt(conn, canonical_url, now, status_code, None)
-    existing = get_fetch(conn, canonical_url)
-    first_fetched_at = (
-        existing["first_fetched_at"]
-        if existing and existing["first_fetched_at"]
-        else now
-    )
     conn.execute(
         """
         INSERT INTO fetches
             (original_url, canonical_url, url_type, status_code, content_hash,
-             raw_file_path, first_fetched_at, last_attempted_at, parser_state, error)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'unparsed', NULL)
-        ON CONFLICT(canonical_url) DO UPDATE SET
+             raw_file_path, parser_state, error)
+        VALUES (?, ?, ?, ?, ?, ?, 'unparsed', NULL)
+        ON CONFLICT DO UPDATE SET
             original_url = excluded.original_url,
+            canonical_url = excluded.canonical_url,
             url_type = excluded.url_type,
             status_code = excluded.status_code,
             content_hash = excluded.content_hash,
             raw_file_path = excluded.raw_file_path,
-            first_fetched_at = COALESCE(fetches.first_fetched_at, excluded.first_fetched_at),
-            last_attempted_at = excluded.last_attempted_at,
             error = NULL
         """,
         (
             original_url,
-            canonical_url,
+            stored_fetch_canonical_url(original_url, canonical_url),
             url_type,
             status_code,
             content_hash,
             raw_file_path,
-            first_fetched_at,
-            now,
         ),
     )
     mark_queue_status(conn, canonical_url, "fetched", increment_attempts=True)
@@ -632,21 +773,20 @@ def record_fetch_failure(
         """
         INSERT INTO fetches
             (original_url, canonical_url, url_type, status_code, content_hash,
-             raw_file_path, first_fetched_at, last_attempted_at, parser_state, error)
-        VALUES (?, ?, ?, ?, NULL, NULL, NULL, ?, 'unparsed', ?)
-        ON CONFLICT(canonical_url) DO UPDATE SET
+             raw_file_path, parser_state, error)
+        VALUES (?, ?, ?, ?, NULL, NULL, 'unparsed', ?)
+        ON CONFLICT DO UPDATE SET
             original_url = excluded.original_url,
+            canonical_url = excluded.canonical_url,
             url_type = excluded.url_type,
             status_code = excluded.status_code,
-            last_attempted_at = excluded.last_attempted_at,
             error = excluded.error
         """,
         (
             original_url,
-            canonical_url,
+            stored_fetch_canonical_url(original_url, canonical_url),
             url_type,
             status_code,
-            now,
             error,
         ),
     )
@@ -705,7 +845,7 @@ def next_pending_url(
         SELECT * FROM queue
         WHERE status = 'pending' AND url_type IN ('season_index', 'season')
         ORDER BY CASE url_type WHEN 'season_index' THEN 0 WHEN 'season' THEN 1 ELSE 2 END,
-                 discovered_at ASC, id ASC
+                 id ASC
         LIMIT 1
         """
     ).fetchone()
@@ -768,7 +908,7 @@ def reset_retryable_failures(conn: sqlite3.Connection) -> int:
         SET status = 'pending', updated_at = ?, last_error = NULL
         WHERE status = 'failed'
           AND canonical_url IN (
-              SELECT canonical_url FROM fetches
+              SELECT COALESCE(canonical_url, original_url) FROM fetches
               WHERE status_code IS NULL OR status_code >= 500
           )
         """,
@@ -783,19 +923,23 @@ def iter_fetches_for_parse(
 ) -> Iterable[sqlite3.Row]:
     if canonical_url:
         rows = conn.execute(
-            """
-            SELECT * FROM fetches
-            WHERE canonical_url = ? AND status_code = 200 AND raw_file_path IS NOT NULL
+            f"""
+            SELECT {FETCH_SELECT_COLUMNS}
+            FROM fetches
+            WHERE COALESCE(canonical_url, original_url) = ?
+              AND status_code = 200
+              AND raw_file_path IS NOT NULL
             """,
             (canonical_url,),
         ).fetchall()
     else:
         rows = conn.execute(
-            """
-            SELECT * FROM fetches
+            f"""
+            SELECT {FETCH_SELECT_COLUMNS}
+            FROM fetches
             WHERE status_code = 200 AND raw_file_path IS NOT NULL
             ORDER BY CASE url_type WHEN 'season_index' THEN 0 WHEN 'season' THEN 1 ELSE 2 END,
-                     first_fetched_at ASC
+                     id ASC
             """
         ).fetchall()
     return rows
