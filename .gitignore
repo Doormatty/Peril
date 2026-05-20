@@ -1,5 +1,6 @@
 .venv/
 .uv-cache/
+.peril-git/
 __pycache__/
 .pytest_cache/
 *.pyc

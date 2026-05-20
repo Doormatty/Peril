@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="styles.css">
     <script>
       window.PERIL_CONFIG = {
-        dbUrl: "jarchive.sqlite3",
+        catalogUrl: "catalog.json",
+        shardBaseUrl: "shards/",
         sqlJsUrl: "vendor/sql-wasm.js",
         sqlWasmUrl: "vendor/sql-wasm.wasm"
       };
@@ -32,7 +33,7 @@
               <button id="random-game" type="button">Random</button>
             </div>
             <input id="game-search" type="search" autocomplete="off" placeholder="Search seasons, shows, dates">
-            <div id="game-status" class="status" role="status">Loading database...</div>
+            <div id="game-status" class="status" role="status">Loading catalog...</div>
             <div id="game-list" class="game-list" aria-label="Seasons and playable games"></div>
           </div>
         </aside>

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   answerMatches,
   baseClueAmount,
+  catalogUrl,
   clueLabel,
   clueRows,
   clueValueLabel,
@@ -23,7 +24,8 @@ import {
   searchableGameText,
   searchableSeasonText,
   seasonProgressLabel,
-  seasonTotalGames
+  seasonTotalGames,
+  shardUrl
 } from "../web/gameLogic.mjs";
 
 test("databaseUrlCandidates prefers the colocated database when served from /web/", () => {
@@ -45,6 +47,30 @@ test("databaseUrlCandidates honors an explicit db query parameter", () => {
     }),
     ["/data/custom.sqlite3"]
   );
+});
+
+test("catalog and shard URL helpers support default and override paths", () => {
+  assert.equal(catalogUrl({ config: { catalogUrl: "catalog.json" } }), "catalog.json");
+  assert.equal(
+    catalogUrl({
+      search: "?catalog=/data/peril-catalog.json",
+      config: { catalogUrl: "catalog.json" }
+    }),
+    "/data/peril-catalog.json"
+  );
+  assert.equal(
+    shardUrl("jarchive_s41_s45.sqlite3", { config: { shardBaseUrl: "shards/" } }),
+    "shards/jarchive_s41_s45.sqlite3"
+  );
+  assert.equal(
+    shardUrl("jarchive_s41_s45.sqlite3", {
+      search: "?shardBase=/data/shards",
+      config: { shardBaseUrl: "shards/" }
+    }),
+    "/data/shards/jarchive_s41_s45.sqlite3"
+  );
+  assert.equal(shardUrl("/absolute/shard.sqlite3"), "/absolute/shard.sqlite3");
+  assert.throws(() => shardUrl(""), /no shard/i);
 });
 
 test("listPlayableGames matches all search terms and respects the limit", () => {

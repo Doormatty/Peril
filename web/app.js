@@ -1,10 +1,10 @@
 import {
   SEARCH_DELAY_MS,
   answerMatches,
+  catalogUrl,
   clueLabel,
   clueRows,
   clueValueLabel,
-  databaseUrlCandidates,
   defaultWager,
   findClueForRow,
   firstPlayableRoundIndex,
@@ -18,7 +18,8 @@ import {
   searchableGameText,
   searchableSeasonText,
   seasonProgressLabel,
-  seasonTotalGames
+  seasonTotalGames,
+  shardUrl
 } from "./gameLogic.mjs";
 
 const dom = {
@@ -52,9 +53,10 @@ const dom = {
 };
 
 const state = {
-  db: null,
+  SQL: null,
   seasons: [],
   allGames: [],
+  gamesById: new Map(),
   games: [],
   currentGame: null,
   activeRoundIndex: 0,
@@ -65,34 +67,10 @@ const state = {
   collapsedSeasonIds: new Set(),
   gamePanelCollapsed: false,
   searchTimer: 0,
-  loadingGameId: null
+  loadingGameId: null,
+  shardDbs: new Map(),
+  shardLoads: new Map()
 };
-
-const EFFECTIVE_SEASON_ID_SQL = `
-  COALESCE(
-    CASE
-      WHEN stored_season.season_id IS NOT NULL
-        AND g.air_date IS NOT NULL
-        AND stored_season.date_start IS NOT NULL
-        AND stored_season.date_end IS NOT NULL
-        AND g.air_date BETWEEN stored_season.date_start AND stored_season.date_end
-      THEN g.season_id
-    END,
-    (
-      SELECT date_season.season_id
-      FROM seasons date_season
-      WHERE g.air_date IS NOT NULL
-        AND date_season.date_start IS NOT NULL
-        AND date_season.date_end IS NOT NULL
-        AND date_season.season_id NOT GLOB '*[^0-9]*'
-        AND date_season.season_id <> ''
-        AND g.air_date BETWEEN date_season.date_start AND date_season.date_end
-      ORDER BY CAST(date_season.season_id AS INTEGER) DESC
-      LIMIT 1
-    ),
-    g.season_id
-  )
-`;
 
 function roundNameForOrder(roundOrder) {
   switch (Number(roundOrder)) {
@@ -113,30 +91,46 @@ init().catch((error) => {
 });
 
 async function init() {
-  setStatus("Loading sql.js...");
-  await loadSqlJsScript();
-  const SQL = await window.initSqlJs({
-    locateFile: (filename) => {
-      if (filename.endsWith(".wasm")) {
-        return getConfig().sqlWasmUrl;
-      }
-      return filename;
-    }
-  });
-
-  setStatus("Loading database...");
-  const databaseBytes = await fetchDatabaseBytes();
-  state.db = new SQL.Database(new Uint8Array(databaseBytes));
-  state.allGames = loadPlayableGameSummaries();
-  state.seasons = loadSeasonSummaries();
+  setStatus("Loading catalog...");
+  const catalog = await fetchCatalog();
+  state.allGames = hydrateGameCatalog(catalog.games || []);
+  state.gamesById = new Map(state.allGames.map((game) => [String(game.game_id), game]));
+  state.seasons = hydrateSeasonCatalog(catalog.seasons || []);
 
   bindEvents();
   refreshGameList();
   if (state.games.length > 0) {
-    await loadGame(state.games[0].game_id);
+    renderEmptyBoard("Choose a game to start.");
   } else {
     renderEmptyBoard("No playable games found.");
   }
+}
+
+async function fetchCatalog() {
+  const url = catalogUrl({
+    search: window.location.search,
+    config: getConfig()
+  });
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Could not load catalog. Last error: ${response.status} ${response.statusText}`);
+  }
+  return await response.json();
+}
+
+function hydrateGameCatalog(games) {
+  return games.map((game) => ({
+    ...game,
+    game_id: String(game.game_id),
+    searchText: searchableGameText(game)
+  }));
+}
+
+function hydrateSeasonCatalog(seasons) {
+  return seasons.map((season) => ({
+    ...season,
+    searchText: searchableSeasonText(season)
+  }));
 }
 
 function bindEvents() {
@@ -219,25 +213,59 @@ async function loadSqlJsScript() {
   });
 }
 
-async function fetchDatabaseBytes() {
-  const urls = databaseUrlCandidates({
+async function ensureSqlJs() {
+  if (state.SQL) {
+    return state.SQL;
+  }
+  setStatus("Loading sql.js...");
+  await loadSqlJsScript();
+  state.SQL = await window.initSqlJs({
+    locateFile: (filename) => {
+      if (filename.endsWith(".wasm")) {
+        return getConfig().sqlWasmUrl;
+      }
+      return filename;
+    }
+  });
+  return state.SQL;
+}
+
+async function fetchDatabaseBytes(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+  return await response.arrayBuffer();
+}
+
+async function getShardDb(shardName) {
+  const url = shardUrl(shardName, {
     search: window.location.search,
-    pathname: window.location.pathname,
     config: getConfig()
   });
-  let lastError = null;
-  for (const url of urls) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`);
-      }
-      return await response.arrayBuffer();
-    } catch (error) {
-      lastError = error;
-    }
+  if (state.shardDbs.has(url)) {
+    return state.shardDbs.get(url);
   }
-  throw new Error(`Could not load SQLite database. Last error: ${lastError?.message || "unknown"}`);
+  if (state.shardLoads.has(url)) {
+    return await state.shardLoads.get(url);
+  }
+
+  const load = (async () => {
+    const SQL = await ensureSqlJs();
+    setStatus(`Loading ${shardName}...`);
+    const databaseBytes = await fetchDatabaseBytes(url);
+    const db = new SQL.Database(new Uint8Array(databaseBytes));
+    state.shardDbs.set(url, db);
+    state.shardLoads.delete(url);
+    return db;
+  })();
+  state.shardLoads.set(url, load);
+  try {
+    return await load;
+  } catch (error) {
+    state.shardLoads.delete(url);
+    throw error;
+  }
 }
 
 function refreshGameList({ updateStatus = true, autoExpandSeason = true } = {}) {
@@ -344,82 +372,6 @@ function isSeasonExpanded(seasonId, query) {
   return !state.collapsedSeasonIds.has(key) && (Boolean(query) || state.expandedSeasonIds.has(key));
 }
 
-function loadPlayableGameSummaries() {
-  return allRows(
-    `
-    SELECT
-      g.game_id,
-      g.show_number,
-      g.air_date,
-      ${EFFECTIVE_SEASON_ID_SQL} AS season_id,
-      g.title,
-      COUNT(DISTINCT ca.round_order) AS round_count,
-      COUNT(DISTINCT ca.id) AS category_count,
-      COUNT(c.id) AS clue_count
-    FROM games g
-    LEFT JOIN seasons stored_season ON stored_season.season_id = g.season_id
-    JOIN categories ca ON ca.game_id = g.game_id
-    JOIN clues c ON c.category_id = ca.id
-    GROUP BY g.game_id
-    ORDER BY
-      g.air_date DESC,
-      CAST(g.game_id AS INTEGER) DESC,
-      g.game_id DESC
-    `
-  ).map((game) => ({
-    ...game,
-    searchText: searchableGameText(game)
-  }));
-}
-
-function loadSeasonSummaries() {
-  return allRows(
-    `
-    WITH effective_games AS (
-      SELECT
-        g.game_id,
-        ${EFFECTIVE_SEASON_ID_SQL} AS season_id
-      FROM games g
-      LEFT JOIN seasons stored_season ON stored_season.season_id = g.season_id
-    ),
-    known_counts AS (
-      SELECT season_id, COUNT(*) AS known_game_count
-      FROM effective_games
-      GROUP BY season_id
-    ),
-    parsed_games AS (
-      SELECT DISTINCT eg.game_id, eg.season_id
-      FROM effective_games eg
-      JOIN categories ca ON ca.game_id = eg.game_id
-      JOIN clues c ON c.category_id = ca.id
-    ),
-    parsed_counts AS (
-      SELECT season_id, COUNT(*) AS parsed_game_count
-      FROM parsed_games
-      GROUP BY season_id
-    )
-    SELECT
-      s.season_id,
-      s.name,
-      s.date_start,
-      s.date_end,
-      s.date_range_text,
-      s.archived_game_count,
-      COALESCE(k.known_game_count, 0) AS known_game_count,
-      COALESCE(p.parsed_game_count, 0) AS parsed_game_count
-    FROM seasons s
-    LEFT JOIN known_counts k ON k.season_id = s.season_id
-    LEFT JOIN parsed_counts p ON p.season_id = s.season_id
-    ORDER BY
-      CAST(s.season_id AS INTEGER) DESC,
-      s.season_id DESC
-    `
-  ).map((season) => ({
-    ...season,
-    searchText: searchableSeasonText(season)
-  }));
-}
-
 function renderGameList(seasons, games, query) {
   const groups = groupGamesBySeason(games);
   const nodes = [];
@@ -515,13 +467,15 @@ function seasonKey(seasonId) {
 }
 
 async function loadGame(gameId) {
-  if (!state.db || state.loadingGameId === gameId) {
+  const gameSummary = state.gamesById.get(String(gameId));
+  if (!gameSummary || state.loadingGameId === gameId) {
     return;
   }
   state.loadingGameId = gameId;
   setStatus(`Loading game ${gameId}...`);
   try {
-    const game = getGame(gameId);
+    const shardDb = await getShardDb(gameSummary.shard);
+    const game = getGame(gameSummary, shardDb);
     if (!game) {
       setStatus(`Game ${gameId} was not found.`, true);
       return;
@@ -537,32 +491,21 @@ async function loadGame(gameId) {
     renderBoard();
     dom.resetGame.disabled = false;
     setStatus(`Game ${gameId} loaded`);
+  } catch (error) {
+    setStatus(`Could not load game ${gameId}: ${error.message || "unknown error"}`, true);
   } finally {
     state.loadingGameId = null;
   }
 }
 
-function getGame(gameId) {
-  const game = oneRow(
-    `
-    SELECT
-      g.game_id,
-      g.show_number,
-      g.air_date,
-      ${EFFECTIVE_SEASON_ID_SQL} AS season_id,
-      g.title,
-      g.notes
-    FROM games g
-    LEFT JOIN seasons stored_season ON stored_season.season_id = g.season_id
-    WHERE g.game_id = ?
-    `,
-    [gameId]
-  );
+function getGame(game, shardDb) {
   if (!game) {
     return null;
   }
+  const gameId = game.game_id;
 
   const roundRows = allRows(
+    shardDb,
     `
     SELECT
       round_order,
@@ -580,6 +523,7 @@ function getGame(gameId) {
   }));
   const categoryRows = roundRows.length > 0
     ? allRows(
+        shardDb,
         `
         SELECT id, round_order, name, board_position
         FROM categories
@@ -592,6 +536,7 @@ function getGame(gameId) {
   const categoryIds = categoryRows.map((category) => category.id);
   const clueRows = categoryIds.length > 0
     ? allRows(
+        shardDb,
         `
         SELECT
           id,
@@ -612,10 +557,10 @@ function getGame(gameId) {
   const clueIds = clueRows.map((clue) => clue.id);
   const responseRows = clueIds.length > 0
     ? allRows(
+        shardDb,
         `
         SELECT
           r.clue_id,
-          r.contestant_id,
           c.name AS contestant,
           r.response_text,
           r.correctness
@@ -673,15 +618,6 @@ function getGame(gameId) {
       ...game,
       clue_count: rounds.reduce((sum, round) => sum + round.clue_count, 0)
     },
-    contestants: allRows(
-      `
-      SELECT name, notes
-      FROM contestants
-      WHERE game_id = ?
-      ORDER BY id
-      `,
-      [gameId]
-    ),
     rounds
   };
 }
@@ -944,8 +880,8 @@ function loadProgress() {
   }
 }
 
-function allRows(sql, params = []) {
-  const stmt = state.db.prepare(sql);
+function allRows(db, sql, params = []) {
+  const stmt = db.prepare(sql);
   try {
     stmt.bind(params);
     const rows = [];
@@ -956,10 +892,6 @@ function allRows(sql, params = []) {
   } finally {
     stmt.free();
   }
-}
-
-function oneRow(sql, params = []) {
-  return allRows(sql, params)[0] || null;
 }
 
 function currentProgressKey() {

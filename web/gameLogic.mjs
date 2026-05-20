@@ -14,6 +14,24 @@ export function databaseUrlCandidates({ search = "", pathname = "", config = {} 
   return [...new Set(urls)];
 }
 
+export function catalogUrl({ search = "", config = {} } = {}) {
+  const params = new URLSearchParams(search);
+  return params.get("catalog") || config.catalogUrl || "catalog.json";
+}
+
+export function shardUrl(shardName, { search = "", config = {} } = {}) {
+  const shard = String(shardName || "");
+  if (!shard) {
+    throw new Error("Game has no shard assignment.");
+  }
+  if (/^(?:[a-z]+:)?\/\//i.test(shard) || shard.startsWith("/") || shard.startsWith(".")) {
+    return shard;
+  }
+  const params = new URLSearchParams(search);
+  const base = params.get("shardBase") || config.shardBaseUrl || "shards/";
+  return `${base.replace(/\/?$/, "/")}${shard}`;
+}
+
 export function listPlayableGames(allGames, search, limit = DEFAULT_LIMIT) {
   const terms = search
     .toLowerCase()

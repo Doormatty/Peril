@@ -56,8 +56,8 @@ successfully saved page.
 ## Single Player SPA
 
 The playable single-player app is in `web/`. It is a static browser app that
-loads `jarchive.sqlite3` with the vendored `sql.js` runtime, then runs read-only
-SQLite queries in the browser.
+loads `catalog.json` at startup, then lazy-loads the vendored `sql.js` runtime
+and one season-range SQLite shard only when a game is opened.
 
 For local development from the repo root:
 
@@ -65,11 +65,17 @@ For local development from the repo root:
 python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000/web/`. The app first tries `web/jarchive.sqlite3`,
-then falls back to the repo-root `jarchive.sqlite3`. For deployment, put
-`index.html`, `app.js`, `gameLogic.mjs`, `styles.css`, and `jarchive.sqlite3` in
-the same static directory. You can override the database URL with
-`?db=/path/to/jarchive.sqlite3`.
+Open `http://localhost:8000/web/`. For deployment, put `index.html`, `app.js`,
+`gameLogic.mjs`, `styles.css`, `catalog.json`, `vendor/`, and `shards/` in the
+same static directory. You can override the catalog URL with
+`?catalog=/path/to/catalog.json` and the shard directory with
+`?shardBase=/path/to/shards/`.
+
+After rebuilding `jarchive.sqlite3`, regenerate the web catalog and shards with:
+
+```bash
+python -m jarchive_scraper export-web --web-dir web --seasons-per-shard 5
+```
 
 The checked-in `web/vendor/sql-wasm.js` and `web/vendor/sql-wasm.wasm` files are
 the only runtime library assets the app needs.

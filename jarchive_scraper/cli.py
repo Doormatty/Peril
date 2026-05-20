@@ -19,6 +19,7 @@ from .fetcher import Fetcher
 from .logging_utils import configure_logging, stderr_console, stdout_console
 from .parser import parse_game_page, parse_season_index, parse_season_page
 from .urls import canonicalize_url, season_index_url
+from .web_export import export_web_assets
 
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,16 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("status")
     status.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     status.set_defaults(func=cmd_status, needs_data_db=True)
+
+    export_web = subparsers.add_parser("export-web")
+    export_web.add_argument("--web-dir", default="web", help="Directory for catalog and shard assets")
+    export_web.add_argument(
+        "--seasons-per-shard",
+        type=int,
+        default=5,
+        help="Number of seasons to include in each lazy-loaded SQLite shard",
+    )
+    export_web.set_defaults(func=cmd_export_web, needs_data_db=True)
 
     enqueue = subparsers.add_parser("enqueue")
     enqueue.add_argument("urls", nargs="+")
@@ -369,6 +380,19 @@ def cmd_status(args, config, data_conn, crawl_conn) -> int:
         stdout_console.print(json.dumps(status, indent=2, sort_keys=True))
     else:
         render_status(status, config)
+    return 0
+
+
+def cmd_export_web(args, config, data_conn, crawl_conn) -> int:
+    result = export_web_assets(
+        config.db_path,
+        Path(args.web_dir),
+        seasons_per_shard=args.seasons_per_shard,
+    )
+    stdout_console.print(f"catalog: {result.catalog_path}")
+    stdout_console.print(f"shards: {len(result.shard_paths)}")
+    stdout_console.print(f"seasons: {result.season_count}")
+    stdout_console.print(f"games: {result.game_count}")
     return 0
 
 
