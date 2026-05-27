@@ -131,8 +131,12 @@ export function isFinalRound(round, clue = null) {
   return Boolean(clue?.is_final_jeopardy) || /final/i.test(round?.name || "");
 }
 
+export function requiresWager(round, clue) {
+  return Boolean(clue?.is_daily_double) || isFinalRound(round, clue);
+}
+
 export function scoringAmount(round, clue, { score, wagerValue } = {}) {
-  if (clue.is_daily_double || isFinalRound(round, clue)) {
+  if (requiresWager(round, clue)) {
     const max = maxWager(round, clue, score);
     const value = Number.parseInt(wagerValue, 10);
     if (!Number.isFinite(value)) {
@@ -168,6 +172,19 @@ export function baseClueAmount(round, clue) {
 
 export function progressKey(gameId) {
   return `${STORAGE_PREFIX}${gameId}`;
+}
+
+export function answeredCluePopupText(round, category, clue) {
+  return [
+    category?.name ? `Category: ${category.name}` : null,
+    `Value: ${clueValueLabel(round, clue)}`,
+    "",
+    `Question: ${clue?.clue_text || "Not archived"}`,
+    "",
+    `Answer: ${clue?.correct_response || "Not archived"}`
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
 }
 
 export function placeholders(count) {

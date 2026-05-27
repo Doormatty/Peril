@@ -1,5 +1,6 @@
 import {
   SEARCH_DELAY_MS,
+  answeredCluePopupText,
   answerMatches,
   catalogUrl,
   clueLabel,
@@ -10,10 +11,10 @@ import {
   firstPlayableRoundIndex,
   formatMoney,
   gameMeta,
-  isFinalRound,
   maxWager,
   placeholders,
   progressKey as buildProgressKey,
+  requiresWager,
   scoringAmount,
   searchableGameText,
   searchableSeasonText,
@@ -41,8 +42,13 @@ const dom = {
   clueCategory: document.querySelector("#clue-category"),
   clueValue: document.querySelector("#clue-value"),
   clueText: document.querySelector("#clue-text"),
-  wagerArea: document.querySelector("#wager-area"),
+  wagerDialog: document.querySelector("#wager-dialog"),
+  wagerForm: document.querySelector("#wager-dialog form"),
+  wagerCategory: document.querySelector("#wager-category"),
+  wagerValue: document.querySelector("#wager-value"),
+  wagerLimit: document.querySelector("#wager-limit"),
   wagerInput: document.querySelector("#wager-input"),
+  closeWager: document.querySelector("#close-wager"),
   playerResponse: document.querySelector("#player-response"),
   correctResponse: document.querySelector("#correct-response"),
   closeClue: document.querySelector("#close-clue"),
@@ -61,6 +67,8 @@ const state = {
   currentGame: null,
   activeRoundIndex: 0,
   activeClue: null,
+  activeWagerValue: "",
+  pendingWagerClue: null,
   score: 0,
   answered: new Set(),
   expandedSeasonIds: new Set(),
@@ -178,6 +186,11 @@ function bindEvents() {
   });
 
   dom.closeClue.addEventListener("click", closeClueDialog);
+  dom.closeWager.addEventListener("click", () => closeWagerDialog());
+  dom.wagerDialog.addEventListener("cancel", () => {
+    state.pendingWagerClue = null;
+  });
+  dom.wagerForm.addEventListener("submit", submitWager);
   dom.clueForm.addEventListener("submit", (event) => {
     event.preventDefault();
     revealResponse();
@@ -685,15 +698,25 @@ function renderBoard() {
         cells.push(placeholder);
         continue;
       }
+      if (state.answered.has(String(clue.id))) {
+        const tile = document.createElement("div");
+        tile.className = "clue-tile answered";
+        const reviewButton = document.createElement("button");
+        reviewButton.type = "button";
+        reviewButton.className = "clue-review-button";
+        reviewButton.setAttribute("aria-label", "Show clue and response");
+        reviewButton.title = "Show clue and response";
+        reviewButton.append(createEyeIcon());
+        reviewButton.addEventListener("click", () => showAnsweredCluePopup(round, category, clue));
+        tile.append(reviewButton);
+        cells.push(tile);
+        continue;
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = "clue-tile";
-      if (state.answered.has(String(clue.id))) {
-        button.classList.add("answered");
-        button.disabled = true;
-      }
       button.textContent = clueLabel(round, clue);
-      button.addEventListener("click", () => openClueDialog(round, category, clue));
+      button.addEventListener("click", () => selectClue(round, category, clue));
       cells.push(button);
     }
   }
@@ -706,8 +729,74 @@ function renderEmptyBoard(message) {
   dom.board.textContent = message;
 }
 
-function openClueDialog(round, category, clue) {
+function showAnsweredCluePopup(round, category, clue) {
+  window.alert(answeredCluePopupText(round, category, clue));
+}
+
+function createEyeIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+
+  const eye = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  eye.setAttribute("d", "M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z");
+
+  const pupil = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  pupil.setAttribute("cx", "12");
+  pupil.setAttribute("cy", "12");
+  pupil.setAttribute("r", "3");
+
+  svg.append(eye, pupil);
+  return svg;
+}
+
+function selectClue(round, category, clue) {
+  if (requiresWager(round, clue)) {
+    openWagerDialog(round, category, clue);
+    return;
+  }
+  openClueDialog(round, category, clue);
+}
+
+function openWagerDialog(round, category, clue) {
+  state.pendingWagerClue = { round, category, clue };
+  dom.wagerCategory.textContent = category.name;
+  dom.wagerValue.textContent = clueValueLabel(round, clue);
+  const max = maxWager(round, clue, state.score);
+  dom.wagerLimit.textContent = `Maximum wager: ${formatMoney(max)}`;
+  dom.wagerInput.max = String(max);
+  dom.wagerInput.min = "0";
+  dom.wagerInput.value = String(defaultWager(round, clue, max));
+  dom.wagerDialog.showModal();
+  dom.wagerInput.focus();
+  dom.wagerInput.select();
+}
+
+function submitWager(event) {
+  event.preventDefault();
+  if (!state.pendingWagerClue || !dom.wagerInput.reportValidity()) {
+    return;
+  }
+  const { round, category, clue } = state.pendingWagerClue;
+  const wagerValue = dom.wagerInput.value;
+  closeWagerDialog({ clearPending: false });
+  state.pendingWagerClue = null;
+  openClueDialog(round, category, clue, { wagerValue });
+}
+
+function closeWagerDialog({ clearPending = true } = {}) {
+  if (clearPending) {
+    state.pendingWagerClue = null;
+  }
+  if (dom.wagerDialog.open) {
+    dom.wagerDialog.close();
+  }
+}
+
+function openClueDialog(round, category, clue, { wagerValue = "" } = {}) {
   state.activeClue = { round, category, clue };
+  state.activeWagerValue = wagerValue;
   dom.clueCategory.textContent = category.name;
   dom.clueValue.textContent = clueValueLabel(round, clue);
   dom.clueText.textContent = clue.clue_text || "";
@@ -720,22 +809,8 @@ function openClueDialog(round, category, clue) {
   dom.markCorrect.hidden = true;
   dom.markWrong.hidden = true;
   dom.markPass.hidden = true;
-  configureWager(round, clue);
   dom.clueDialog.showModal();
   dom.playerResponse.focus();
-}
-
-function configureWager(round, clue) {
-  const needsWager = clue.is_daily_double || isFinalRound(round);
-  dom.wagerArea.hidden = !needsWager;
-  if (!needsWager) {
-    dom.wagerInput.value = "";
-    return;
-  }
-  const max = maxWager(round, clue, state.score);
-  dom.wagerInput.max = String(max);
-  dom.wagerInput.min = "0";
-  dom.wagerInput.value = String(defaultWager(round, clue, max));
 }
 
 function revealResponse() {
@@ -818,7 +893,7 @@ function scoreActiveClue(result, { closeDialog = true } = {}) {
   }
   const amount = scoringAmount(round, clue, {
     score: state.score,
-    wagerValue: dom.wagerInput.value
+    wagerValue: state.activeWagerValue
   });
   if (result === "correct") {
     state.score += amount;
@@ -836,6 +911,7 @@ function scoreActiveClue(result, { closeDialog = true } = {}) {
 
 function closeClueDialog() {
   state.activeClue = null;
+  state.activeWagerValue = "";
   if (dom.clueDialog.open) {
     dom.clueDialog.close();
   }

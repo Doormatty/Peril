@@ -70,10 +70,6 @@
           <span id="clue-category"></span>
           <strong id="clue-value"></strong>
         </div>
-        <div id="wager-area" class="wager-area" hidden>
-          <label for="wager-input">Wager</label>
-          <input id="wager-input" type="number" min="0" step="100" inputmode="numeric">
-        </div>
         <p id="clue-text" class="clue-text"></p>
         <label class="response-label" for="player-response">Response</label>
         <input id="player-response" type="text" autocomplete="off">
@@ -84,6 +80,24 @@
           <button id="mark-wrong" type="button" class="danger" hidden>Wrong</button>
           <button id="mark-pass" type="button" class="secondary" hidden>Pass</button>
           <button id="mark-correct" type="button" class="success" hidden>Correct</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="wager-dialog" class="clue-dialog wager-dialog">
+      <form method="dialog" class="clue-panel wager-panel">
+        <div class="clue-topline">
+          <span id="wager-category"></span>
+          <strong id="wager-value"></strong>
+        </div>
+        <p id="wager-limit" class="wager-limit"></p>
+        <div class="wager-area">
+          <label for="wager-input">Wager</label>
+          <input id="wager-input" type="number" min="0" step="100" inputmode="numeric">
+        </div>
+        <div class="dialog-actions">
+          <button id="close-wager" type="button" class="secondary">Cancel</button>
+          <button id="submit-wager" type="submit">Continue</button>
         </div>
       </form>
     </dialog>

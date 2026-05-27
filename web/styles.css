@@ -497,9 +497,38 @@ h2 {
 }
 
 .clue-tile.answered {
-  color: rgba(255, 255, 255, 0.28);
+  position: relative;
+  color: transparent;
   background: #25275b;
   text-shadow: none;
+}
+
+.clue-review-button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  width: 28px;
+  min-height: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(255, 213, 61, 0.72);
+  border-radius: 999px;
+  padding: 0;
+  color: var(--gold);
+  background: rgba(2, 11, 53, 0.78);
+  box-shadow: none;
+}
+
+.clue-review-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
 }
 
 .clue-placeholder {
@@ -558,6 +587,13 @@ h2 {
   grid-template-columns: 84px minmax(140px, 220px);
   gap: 10px;
   align-items: center;
+}
+
+.wager-limit {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .wager-area label,
@@ -690,6 +726,19 @@ h2 {
   .clue-tile {
     min-height: 64px;
     font-size: 1.3rem;
+  }
+
+  .clue-review-button {
+    top: 5px;
+    right: 5px;
+    width: 26px;
+    min-height: 26px;
+    height: 26px;
+  }
+
+  .clue-review-button svg {
+    width: 15px;
+    height: 15px;
   }
 
   .clue-placeholder {

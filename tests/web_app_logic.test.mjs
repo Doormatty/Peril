@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  answeredCluePopupText,
   answerMatches,
   baseClueAmount,
   catalogUrl,
@@ -20,6 +21,7 @@ import {
   normalizeAnswerText,
   parseDollarValue,
   progressKey,
+  requiresWager,
   scoringAmount,
   searchableGameText,
   searchableSeasonText,
@@ -143,6 +145,18 @@ test("wager scoring clamps invalid and excessive wager input", () => {
   assert.equal(scoringAmount(round, clue, { score: 500, wagerValue: "abc" }), 0);
 });
 
+test("wager prompts are reserved for Daily Doubles and Final Jeopardy", () => {
+  assert.equal(
+    requiresWager({ name: "Double Jeopardy!" }, { row_value: 3, is_daily_double: true }),
+    true
+  );
+  assert.equal(requiresWager({ name: "Final Jeopardy!" }, { is_daily_double: false }), true);
+  assert.equal(
+    requiresWager({ name: "Double Jeopardy!" }, { row_value: 3, is_daily_double: false }),
+    false
+  );
+});
+
 test("final round wager cannot exceed the current score", () => {
   const round = { name: "Final Jeopardy!" };
   const clue = { value_amount: 0, is_daily_double: false };
@@ -158,6 +172,22 @@ test("regular clue scoring is derived from round and row", () => {
 
   assert.equal(clueLabel(round, clue), "$1,600");
   assert.equal(scoringAmount(round, clue, { score: 0, wagerValue: "" }), 1600);
+});
+
+test("answered clue popup text includes category, question, and answer", () => {
+  assert.equal(
+    answeredCluePopupText(
+      { name: "Jeopardy!" },
+      { name: "WORLD CAPITALS" },
+      {
+        row_value: 2,
+        clue_text: "This city sits on the Seine.",
+        correct_response: "Paris",
+        is_daily_double: false
+      }
+    ),
+    "Category: WORLD CAPITALS\nValue: $400\n\nQuestion: This city sits on the Seine.\n\nAnswer: Paris"
+  );
 });
 
 test("formatting helpers keep UI labels stable", () => {
